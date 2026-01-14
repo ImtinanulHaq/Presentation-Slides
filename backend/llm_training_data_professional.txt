@@ -1,0 +1,646 @@
+═════════════════════════════════════════════════════════════════════════════
+PROFESSIONAL PRESENTATION GENERATION SYSTEM - LLM TRAINING DATA
+═════════════════════════════════════════════════════════════════════════════
+
+SYSTEM PURPOSE:
+Transform raw content into professionally structured presentation JSON compatible
+with executive, educational, and sales contexts. Emphasize clarity, impact, and
+audience-appropriate delivery.
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 1: CORE PRESENTATION ARCHITECTURE PATTERNS
+═════════════════════════════════════════════════════════════════════════════
+
+── PATTERN 1.1: EXECUTIVE BUSINESS PRESENTATION ──
+Target Audience: C-Suite, Board Members, Investors
+Tone: Professional, Data-Driven, Concise
+Typical Duration: 15-20 minutes (10-12 slides)
+Decision Threshold: Executive-level buying decision or strategy approval
+
+REQUIRED ELEMENTS:
+1. Executive Summary Slide
+   - Clear value proposition (one sentence)
+   - Three key metrics supporting the proposal
+   - Expected timeline and ROI
+
+2. Problem/Opportunity Analysis
+   - Quantified market gap or business challenge
+   - Financial impact of current state
+   - Competitive pressure or market trend
+
+3. Proposed Solution
+   - Specific approach with differentiation
+   - Implementation timeline (phased)
+   - Risk mitigation strategies
+
+4. Financial Impact
+   - Cost-Benefit Analysis table
+   - ROI projection (1, 3, 5-year)
+   - Payback period
+
+5. Implementation Roadmap
+   - Critical milestones (quarters or phases)
+   - Resource requirements
+   - Success metrics and KPIs
+
+6. Team & Execution Capability
+   - Key stakeholders and responsibilities
+   - Track record in similar initiatives
+   - Organizational readiness assessment
+
+STRUCTURE RULES:
+- Maximum 4 bullet points per slide (executive preference)
+- Each bullet ≤ 15 words
+- Use numbers/percentages liberally
+- Avoid jargon unless context-appropriate
+- One key message per slide
+
+VISUAL ELEMENTS:
+- Icons: chart.ascending, briefcase, shield.checkmark, target
+- Colors: Professional (Blue #003366, Gray #666666, White background)
+- Charts: Bar charts for comparisons, Line graphs for trends
+- Layouts: Title + 3 content area (top: metrics, middle: main message, bottom: CTA)
+
+EXAMPLE OUTPUT JSON STRUCTURE:
+{
+  "presentation_title": "Digital Transformation Initiative - Investment Proposal",
+  "total_slides": 10,
+  "slides": [
+    {
+      "slide_number": 1,
+      "slide_type": "title",
+      "title": "Digital Transformation: Competitive Advantage Strategy",
+      "subtitle": "Investment Proposal & Implementation Roadmap",
+      "speaker_notes": "Open with market context and urgency"
+    },
+    {
+      "slide_number": 2,
+      "slide_type": "content",
+      "title": "Market Opportunity",
+      "bullets": [
+        "Current digital gap costs us $2.5M annually in operational inefficiency",
+        "Competitors implementing AI solutions gaining 25% market share advantage",
+        "Digital-first customers representing 60% of market growth",
+        "18-month window before competitive disadvantage becomes critical"
+      ],
+      "visuals": ["chart.ascending", "warning.icon"],
+      "speaker_notes": "Establish urgency and business case for change"
+    }
+  ]
+}
+
+── PATTERN 1.2: SALES PITCH DECK ──
+Target Audience: Prospects, Sales Teams, Channel Partners
+Tone: Persuasive, Customer-Focused, Problem-Solution
+Typical Duration: 20-30 minutes (8-10 slides)
+Decision Threshold: Customer acquisition or partnership agreement
+
+ARCHITECTURE:
+1. Hook Slide (Problem)
+   - Customer's pain point (stated as question)
+   - Business impact (time/cost/quality)
+   - Audience relevance ("This affects you if...")
+
+2. Current State Analysis
+   - Customer's current approach
+   - Limitations and costs
+   - Industry benchmarks (showing gap)
+
+3. Competitive Landscape
+   - Market overview
+   - Alternative approaches (and their limitations)
+   - Why competing solutions fall short
+
+4. Proposed Solution
+   - Product/service overview
+   - How it addresses the specific pain point
+   - Key differentiators (3-5 maximum)
+
+5. Use Case/Social Proof
+   - Real customer success story
+   - Specific metrics achieved
+   - Quote from customer (authentic)
+
+6. Implementation & Support
+   - How we deliver the solution
+   - Timeline to value
+   - Support structure and SLAs
+
+7. Pricing & Investment
+   - Transparent pricing model
+   - Payment terms and options
+   - ROI justification
+
+8. Call to Action
+   - Next steps (specific and time-bound)
+   - Contact information
+   - Special offer or limited-time incentive
+
+BULLET OPTIMIZATION:
+Each bullet follows formula: [Benefit] + [Evidence/How] = Compelling Statement
+Examples:
+✓ "Cut implementation time from 16 weeks to 4 weeks through automated setup"
+✓ "Reduce support tickets by 70% via intelligent triage and self-service"
+✓ "Improve team adoption from 40% to 95% with intuitive onboarding"
+
+VISUAL STRATEGY:
+- Icons: target, rocket.launch, handshake, chart, user.check
+- Colors: Brand colors for consistency, contrasting highlight color
+- Images: Customer environments, success metrics, product in action
+- Avoid: Cluttered layouts, generic stock photos
+
+── PATTERN 1.3: EDUCATIONAL/TRAINING PRESENTATION ──
+Target Audience: Students, Employees, Learners
+Tone: Clear, Structured, Supportive
+Typical Duration: 45-90 minutes (15-25 slides depending on depth)
+Success Metric: Comprehension and skill acquisition
+
+STRUCTURE:
+1. Learning Objectives Slide
+   - 3-5 clear, measurable objectives
+   - Expected outcomes ("By end of session, you will...")
+   - Success criteria
+
+2. Content Progression (Conceptual Build)
+   - Start with familiar concepts
+   - Progress to complex topics
+   - Layer complexity gradually
+   - Use analogies for abstract concepts
+
+3. Key Concept Slides (One per major concept)
+   - Definition (simple language)
+   - Visual representation (diagram/icon)
+   - Real-world example
+   - Common misconception addressed
+
+4. Application/Practice Slides
+   - How to apply the concept
+   - Step-by-step examples
+   - Interactive element (questions for reflection)
+
+5. Summary/Review
+   - Key takeaways (reiterate 3-5 main points)
+   - Connection to broader context
+   - Transition to next topic
+
+6. Resources & Further Learning
+   - Recommended readings
+   - Practice exercises
+   - Contact info for questions
+
+PEDAGOGICAL RULES:
+- Use consistent terminology throughout
+- Define all specialized terms on first use
+- Provide visual representations of abstract concepts
+- Include examples that span difficulty levels
+- Encourage note-taking with white space
+- Avoid reading slides verbatim (slides support, you deliver)
+
+VISUAL APPROACH:
+- Icons: book, lightbulb, check, question, arrow.progression
+- Colors: Calm, professional (avoid overstimulation)
+- Diagrams: Process flows, concept maps, timelines
+- Typography: Large, readable fonts
+
+── PATTERN 1.4: STARTUP PITCH TO INVESTORS ──
+Target Audience: Venture Capitalists, Angel Investors, Partners
+Tone: Confident, Visionary, Grounded in Reality
+Typical Duration: 10 minutes maximum (10-12 slides)
+Decision Threshold: Funding decision or partnership commitment
+
+INVESTOR DECK STRUCTURE (Modified YC Model):
+1. Title Slide (Hook)
+   - Company name + tagline
+   - One-sentence mission statement
+   - "One slide version of the idea"
+
+2. The Problem
+   - Real, acute customer problem
+   - Market size/significance
+   - Current inadequate solutions
+
+3. Vision/Opportunity
+   - Why this matters (TAM - Total Addressable Market)
+   - Market trends favoring solution
+   - Why now? (market readiness)
+
+4. The Solution
+   - Product demo OR compelling description
+   - How it solves the problem uniquely
+   - Patent/IP protection if applicable
+
+5. Product/Technology
+   - What makes it technically differentiated
+   - Development status (MVP, Beta, Live)
+   - Roadmap for next 12-24 months
+
+6. Business Model
+   - How revenue is generated
+   - Pricing strategy
+   - Unit economics (if available)
+
+7. Market & Traction
+   - Customer acquisition progress
+   - User growth metrics
+   - Market validation (customer feedback)
+
+8. Competition & Positioning
+   - Competitive landscape
+   - Why you win (defensibility)
+   - Market positioning
+
+9. Team
+   - Founders/key team (bios highlight relevant experience)
+   - Why this team can execute
+   - Key advisors/board members
+
+10. Financial Projections
+    - Revenue projections (3-year minimum)
+    - Unit economics (CAC, LTV)
+    - Path to profitability
+
+11. Use of Funds
+    - Capital requirement
+    - Allocation breakdown (product, marketing, ops, etc.)
+    - Milestones funded will achieve
+
+12. The Ask & Vision
+    - Specific funding amount sought
+    - Vision for 5-year future
+    - Call to action for meeting
+
+INVESTOR PRESENTATION RULES:
+- Be specific about metrics (avoid "significant growth")
+- Differentiate clearly from competitors
+- Show customer traction (real numbers)
+- Demonstrate founding team's commitment (skin in game)
+- Be realistic about risks and challenges
+- Project confidence without arrogance
+
+VISUAL STRATEGY:
+- Icons: rocket, chart, shield, person, target
+- Colors: Brand consistency, professional appearance
+- Charts: Customer growth, revenue projections, market size
+- Avoid: Overly polished (suggests you're spending on design, not product)
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 2: CONTENT TRANSFORMATION RULES
+═════════════════════════════════════════════════════════════════════════════
+
+RULE 2.1: WORD COUNT TO SLIDE COUNT MAPPING
+Raw Content Words → Recommended Slide Count
+
+100-200 words      → 3-4 slides (summary presentation)
+200-400 words      → 4-5 slides (brief overview)
+400-700 words      → 6-8 slides (standard presentation)
+700-1200 words     → 8-12 slides (comprehensive)
+1200-2000 words    → 12-16 slides (in-depth)
+2000+ words        → 16-20+ slides (workshop/course)
+
+RULE 2.2: CONTENT ANALYSIS & RESTRUCTURING
+
+If Input Contains:
+→ Dense Paragraphs: Break into 3-4 logical slides
+→ Multiple Disconnected Topics: Add section divider slides
+→ No Statistics/Metrics: Transform qualitative claims to quantitative
+→ Weak Introduction: Create compelling hook slide
+→ Vague Conclusions: Add clear call-to-action slide
+→ Jargon Heavy: Simplify terminology for audience
+→ Lists Without Context: Group into thematic bullets
+→ Story/Case Study: Structure as problem-solution-result progression
+
+RULE 2.3: BULLET POINT TRANSFORMATION
+
+WEAK INPUT:
+"Our company provides solutions for enterprise customers that help them manage
+their business processes more effectively through the use of advanced technology
+and automation capabilities that reduce manual work and improve efficiency metrics
+across the organization."
+
+TRANSFORMED OUTPUT:
+✓ "Automate 70% of manual processes in first 90 days"
+✓ "Improve team productivity by average 3.2 hours per person per week"
+✓ "Achieve ROI within 6 months with measurable cost reduction"
+
+RULE 2.4: TONE ADJUSTMENT
+
+Input Tone: Professional/Corporate
+→ Use: Formal language, data-driven examples, business focus
+→ Bullet Structure: [Benefit] + [Business Impact] = Result
+→ Visual Tone: Minimalist icons, professional colors (Blue, Gray, Black)
+→ Example Bullet: "Reduce operational costs by $500K annually through automation"
+
+Input Tone: Casual/Friendly
+→ Use: Conversational language, relatable examples, approachable tone
+→ Bullet Structure: [Relatable Benefit] + [How] = Easy Understanding
+→ Visual Tone: Colorful icons, friendly symbols, vibrant palette
+→ Example Bullet: "Save your team 5 hours every week (that's 260 hours/year!)"
+
+Input Tone: Academic/Technical
+→ Use: Precise terminology, sources/citations, detailed explanations
+→ Bullet Structure: [Concept] + [Explanation] + [Implication] = Learning
+→ Visual Tone: Scientific icons, educational diagrams, neutral colors
+→ Example Bullet: "Reduces latency by 45% through optimized query compilation"
+
+Input Tone: Persuasive/Sales
+→ Use: Question-based openings, problem emphasis, solution highlight
+→ Bullet Structure: [Problem] + [Solution] + [Benefit] = Conversion
+→ Visual Tone: Bold icons, impactful symbols, high-contrast colors
+→ Example Bullet: "Stop losing customers to faster competitors—match speed in weeks"
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 3: VISUAL ELEMENTS & ICON MAPPING
+═════════════════════════════════════════════════════════════════════════════
+
+ICON SELECTION BY CONTENT:
+
+Performance/Metrics:
+→ Icons: chart.ascending, bar.chart, line.graph, trending.arrow, percentage
+→ Usage: Data slides, results, KPI demonstrations
+
+Process/Workflow:
+→ Icons: arrow.right, steps.numbered, gear, workflow.diagram, automation
+→ Usage: How-to slides, implementation, procedures
+
+People/Team:
+→ Icons: user.group, handshake, person.plus, collaboration, network
+→ Usage: Team slides, culture, collaboration benefits
+
+Security/Trust:
+→ Icons: shield.check, lock, verified, safety, encryption
+→ Usage: Security features, compliance, trust building
+
+Growth/Success:
+→ Icons: rocket, trophy, star, upward.arrow, target.checkmark
+→ Usage: Results, achievements, vision, goals
+
+Money/Finance:
+→ Icons: dollar, investment, graph.ascending, percentage, payment
+→ Usage: Pricing, ROI, budget, financial impact
+
+Technical/Innovation:
+→ Icons: code, technology, chip, api, cloud
+→ Usage: Technical features, development, architecture
+
+Warning/Change:
+→ Icons: warning.triangle, alert, change.arrow, refresh
+→ Usage: Risks, challenges, transformation, migration
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 4: LAYOUT & DESIGN PRINCIPLES
+═════════════════════════════════════════════════════════════════════════════
+
+STANDARD SLIDE LAYOUT TYPES:
+
+Type A: Title Slide
+- Large, bold title (60pt+)
+- Subtitle supporting main message (36pt)
+- Optional: Background image, brand element
+
+Type B: Title + Content (4 Bullets)
+- Title: 48pt, bold
+- 4 bullet points: 24pt, single line each (max 15 words)
+- Left 70% content, right 30% visual/icon
+
+Type C: Title + Two Column
+- Title: 44pt
+- Left column: 3-4 bullets (24pt)
+- Right column: Visual, chart, or image
+- Optimal for comparisons or process flows
+
+Type D: Title + Large Visual
+- Title: 44pt
+- Content area: Large diagram, chart, or infographic
+- Minimal text (6-8 words supporting visual)
+
+Type E: Section Divider
+- Large, bold topic (64pt)
+- Background color or image
+- Minimal text, high visual impact
+
+DESIGN RULES:
+1. Consistency: Same font family, color palette, layout throughout
+2. Whitespace: Minimum 15% of slide is empty space
+3. Contrast: Readable text on background (21:1 text:background minimum)
+4. Visual Hierarchy: Title > Body > Supporting details
+5. One Idea Per Slide: Avoid cramming multiple concepts
+6. Alignment: Text/graphics aligned to grids (clean appearance)
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 5: ADVANCED PATTERNS FOR SPECIFIC USE CASES
+═════════════════════════════════════════════════════════════════════════════
+
+PATTERN 5.1: PROBLEM-SOLUTION-RESULT (PSR) NARRATIVE
+Used For: Sales, Pitches, Case Studies
+
+Structure:
+Slide 1: Define the PROBLEM
+- Specific customer pain point
+- Why it matters (business impact)
+- Emotional resonance ("If this happens to you...")
+
+Slide 2: Show Current Struggles
+- Status quo costs (time, money, quality)
+- Existing solution limitations
+- Competitive disadvantages
+
+Slide 3: Introduce SOLUTION
+- Your offering (specific, not vague)
+- Key differentiators (3 max)
+- Why it's better than alternatives
+
+Slide 4: RESULTS/PROOF
+- Customer testimonial + metrics
+- Before/after comparison
+- Timeline to impact
+
+Example Transformation:
+Input: "We have a project management tool."
+Output:
+- S1: "60% of projects miss deadlines—why? Disconnected team communication."
+- S2: "Current tools lack real-time collaboration. Teams lose 12+ hours/week switching between apps."
+- S3: "Unified platform: one dashboard, real-time updates, automated status reporting."
+- R1: "Acme Corp reduced missed deadlines by 85% in first quarter."
+
+PATTERN 5.2: DATA-DRIVEN PRESENTATION
+Used For: Executive briefings, Research presentations, Analytics reports
+
+Structure:
+1. Data Context Slide
+- What data you're presenting
+- Time period and sources
+- Key limitations to acknowledge
+
+2. Primary Finding Slide
+- Headline with key metric
+- Supporting data visualization
+- One insight per slide
+
+3. Secondary Insight Slide
+- Second most important finding
+- Chart/graph with clear labeling
+- Business implication bullet
+
+4. Deeper Analysis (if warranted)
+- Trend analysis
+- Segment breakdown
+- Correlation insights
+
+5. Recommendations/Actions
+- Data-backed recommendations
+- Prioritized by impact
+- Clear next steps
+
+Visual Rules for Data:
+- Use same chart type for comparisons
+- Label axes clearly
+- Highlight key data point (color emphasis)
+- Avoid 3D charts (distort perception)
+- Legends should be minimal
+
+PATTERN 5.3: TRANSFORMATION/CHANGE MANAGEMENT
+Used For: Internal communications, Change initiatives, Org transformations
+
+Structure:
+1. Why Change (Burning Platform)
+- Current state unsustainable
+- Market/competitive pressures
+- Opportunity cost of inaction
+
+2. Vision (Desired Future State)
+- Compelling picture of improved future
+- How success looks/feels
+- Benefits for different stakeholders
+
+3. Transition Strategy
+- Phased approach with timeline
+- Key milestones
+- Support structures (training, resources)
+
+4. What's in It for Me (WIIFM)
+- Personal/team benefits
+- How roles evolve
+- Career development opportunities
+
+5. Call to Action
+- Role of each audience member
+- Resources available
+- Progress tracking/updates
+
+PATTERN 5.4: TECHNICAL PRESENTATION
+Used For: Product demos, Architecture reviews, Engineering updates
+
+Structure:
+1. Business Context
+- Why this technical work matters
+- Business objectives aligned with tech
+- Success criteria
+
+2. Architecture Overview
+- System diagram (simplified)
+- Key components (high level)
+- Technology stack justification
+
+3. Technical Deep Dives (by component)
+- Slide per major component
+- Problem solved by this component
+- Technical implementation details
+- Performance/scalability metrics
+
+4. Integration & Data Flow
+- How components interact
+- Data flow diagrams
+- API contracts/interfaces
+
+5. Testing & Quality
+- Testing strategy and coverage
+- Known limitations
+- Performance benchmarks
+
+6. Deployment & Operations
+- Deployment architecture
+- Monitoring and alerting
+- Disaster recovery/failover
+- Operational procedures
+
+Visual Approach:
+- Use consistent icon style for components
+- Color-code data flows
+- Diagram tools: draw.io, Miro, Figma
+- Include code snippets for relevant details
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 6: ANTI-PATTERNS TO AVOID
+═════════════════════════════════════════════════════════════════════════════
+
+❌ ANTI-PATTERN 1: WALL OF TEXT
+Problem: Bullet points with 20+ words, multiple sentences per bullet
+Fix: Max 12-15 words per bullet, one idea per bullet
+
+❌ ANTI-PATTERN 2: CHART OVERLOAD
+Problem: Too many data points, 3D charts, unprofessional formatting
+Fix: One insight per chart, clear labeling, professional styling
+
+❌ ANTI-PATTERN 3: INCONSISTENT DESIGN
+Problem: Different fonts, colors, layouts across slides
+Fix: Use design system, consistent templates, brand guidelines
+
+❌ ANTI-PATTERN 4: UNCLEAR OBJECTIVES
+Problem: Audience doesn't know why they're watching
+Fix: Open with clear objective, reiterate as needed, close with takeaway
+
+❌ ANTI-PATTERN 5: OUTDATED DATA
+Problem: Statistics from 3+ years ago presented as current
+Fix: Include data date, use recent sources, acknowledge historical data
+
+❌ ANTI-PATTERN 6: IRRELEVANT IMAGES
+Problem: Stock photos that don't reinforce message
+Fix: Choose images that directly support content, consider removing if neutral
+
+❌ ANTI-PATTERN 7: ABSENCE OF SPEAKER NOTES
+Problem: Slides work but presenter has no guidance
+Fix: Include context, key talking points, transitions in notes
+
+═════════════════════════════════════════════════════════════════════════════
+SECTION 7: QUALITY ASSURANCE CHECKLIST
+═════════════════════════════════════════════════════════════════════════════
+
+For Every Generated Presentation, Verify:
+
+CONTENT QUALITY:
+☑ Slide count appropriate for content volume
+☑ One clear message per slide (pass the "glance test")
+☑ Bullets follow formula [Action] + [Metric] = [Benefit]
+☑ Tone consistent throughout presentation
+☑ Target audience clearly defined in speaker notes
+☑ Call to action present and specific
+
+STRUCTURE QUALITY:
+☑ Opening slide hooks attention and sets context
+☑ Logical flow from problem → solution → action
+☑ Transitions smooth between sections
+☑ Conclusion reinforces key points
+☑ Section dividers included for clarity
+☑ Content density appropriate for audience
+
+VISUAL QUALITY:
+☑ Icons/visuals align with content
+☑ Color palette consistent
+☑ Text readable (font size, contrast)
+☑ No cluttered layouts
+☑ Charts/graphs properly labeled
+☑ Brand elements included if applicable
+
+ENGAGEMENT:
+☑ Opening question or compelling statistic present
+☑ Speaker notes include interactive elements
+☑ Presentation allows for audience questions
+☑ Conclusion with clear next steps
+
+═════════════════════════════════════════════════════════════════════════════
+
+END OF PROFESSIONAL TRAINING DATA
+
+Version: 2.0 (Professional Edition)
+Last Updated: January 15, 2026
+Optimized for: Groq API LLM Presentation Generation
