@@ -2,8 +2,8 @@ services:
   - type: web
     name: presentation-frontend
     runtime: node
-    buildCommand: "cd frontend && npm install && npm run build"
-    startCommand: "npm install -g serve && serve -s frontend/build -l 3000"
+    buildCommand: "npm install --legacy-peer-deps && npm run build"
+    startCommand: "npm install -g serve && serve -s build -l 3000"
     envVars:
       - key: REACT_APP_API_URL
         value: "https://presentation-slides.onrender.com/api"
