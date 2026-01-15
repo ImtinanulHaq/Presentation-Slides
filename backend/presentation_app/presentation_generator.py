@@ -40,43 +40,225 @@ def repair_json_string(json_str: str) -> str:
     """
     Attempt to repair common JSON formatting issues
     Handles incomplete structures, missing commas, trailing commas, etc.
+    Includes special handling for Urdu text and Unicode characters
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Remove any leading/trailing whitespace
     json_str = json_str.strip()
     
-    # Fix trailing commas before closing brackets/braces
+    # Remove markdown code blocks if present (```json ... ```)
+    if json_str.startswith('```'):
+        json_str = re.sub(r'^```.*?\n', '', json_str, flags=re.MULTILINE)
+        json_str = re.sub(r'\n```$', '', json_str, flags=re.MULTILINE)
+        json_str = json_str.strip()
+    
+    # Remove BOM if present (byte order mark)
+    if json_str.startswith('\ufeff'):
+        json_str = json_str[1:]
+    
+    # Fix common escaped quote issues while preserving Urdu text
+    # Only fix double-escaped quotes (\\" -> "), not single escapes
+    json_str = re.sub(r'\\\\"', '"', json_str)
+    
+    # Fix single quotes to double quotes for JSON compliance
+    # First, handle property names: 'key': -> "key":
+    json_str = re.sub(r"'([^']*)'(\s*):", r'"\1"\2:', json_str)
+    # Handle string values: : 'value', -> : "value",
+    json_str = re.sub(r":\s*'([^']*)'(\s*[,\}])", r': "\1"\2', json_str)
+    
+    # Fix trailing commas before closing brackets/braces (very common issue)
     json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
     
-    # Fix escaped newlines within strings
-    json_str = json_str.replace('\\"', '"')
+    # Fix missing commas between JSON objects/arrays (major cause of invalid JSON)
+    json_str = re.sub(r'(\})\s*(\{)', r'\1,\2', json_str)    # }{ -> },{
+    json_str = re.sub(r'(\})\s*(\[)', r'\1,\2', json_str)    # }[ -> },[
+    json_str = re.sub(r'(\])\s*(\{)', r'\1,\2', json_str)    # ]{ -> },{
+    json_str = re.sub(r'(\])\s*(\[)', r'\1,\2', json_str)    # ][ -> ],[
+    
+    # Fix missing commas after string values
+    json_str = re.sub(r'("\s*)(\{)', r'\1,\2', json_str)     # "{ -> ",{
+    json_str = re.sub(r'("\s*)(\[)', r'\1,\2', json_str)     # "[ -> ",[
+    
+    # Fix escaped newlines within strings - handle both \n and actual newlines
+    # Preserve actual newlines in strings by escaping them
+    parts = []
+    in_string = False
+    i = 0
+    while i < len(json_str):
+        char = json_str[i]
+        if char == '\\' and i + 1 < len(json_str):
+            # Handle escape sequences
+            parts.append(char)
+            parts.append(json_str[i + 1])
+            i += 2
+            continue
+        if char == '"' and (i == 0 or json_str[i-1] != '\\'):
+            in_string = not in_string
+            parts.append(char)
+        elif char == '\n' and in_string:
+            # Replace literal newline with escaped version
+            parts.append('\\n')
+        else:
+            parts.append(char)
+        i += 1
+    json_str = ''.join(parts)
     
     # Try to complete incomplete JSON structures
-    # Count opening and closing braces
-    open_braces = json_str.count('{')
-    close_braces = json_str.count('}')
+    open_braces = json_str.count('{') - json_str.count('}')
+    open_brackets = json_str.count('[') - json_str.count(']')
     
-    if open_braces > close_braces:
-        json_str += '}' * (open_braces - close_braces)
+    if open_braces > 0:
+        json_str += '}' * open_braces
+        logger.debug(f"[JSON REPAIR] Added {open_braces} closing braces")
     
-    # Count opening and closing brackets
-    open_brackets = json_str.count('[')
-    close_brackets = json_str.count(']')
-    
-    if open_brackets > close_brackets:
-        json_str += ']' * (open_brackets - close_brackets)
+    if open_brackets > 0:
+        json_str += ']' * open_brackets
+        logger.debug(f"[JSON REPAIR] Added {open_brackets} closing brackets")
     
     return json_str
+
+
+def generate_fallback_slides(text: str, topic: str, num_slides: int = 5) -> dict:
+    """
+    Generate basic slide structure from raw text when JSON parsing fails
+    Extracts key sentences/paragraphs and creates valid JSON slide structure
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.warning(f"[FALLBACK] Generating slides from raw text")
+    
+    # Split text into sentences/paragraphs
+    sentences = [s.strip() for s in text.split('.') if s.strip()]
+    if not sentences:
+        sentences = [s.strip() for s in text.split('\n') if s.strip()]
+    
+    slides = []
+    
+    # Create title slide
+    slides.append({
+        'slide_number': 1,
+        'title': topic,
+        'subtitle': 'Presentation Generated',
+        'content': 'Content prepared from text analysis',
+        'bullets': ['Key information compiled'],
+        'visual_description': 'Title slide with topic'
+    })
+    
+    # Distribute sentences across remaining slides
+    if num_slides > 1:
+        sentences_per_slide = max(1, len(sentences) // (num_slides - 1))
+        slide_num = 2
+        
+        for i in range(0, len(sentences), sentences_per_slide):
+            if slide_num > num_slides:
+                break
+            
+            chunk = sentences[i:i+sentences_per_slide]
+            slide_bullets = [s[:100] + ('...' if len(s) > 100 else '') for s in chunk]
+            
+            slides.append({
+                'slide_number': slide_num,
+                'title': f'Key Point {slide_num - 1}',
+                'subtitle': '',
+                'content': ' '.join(chunk)[:500],
+                'bullets': slide_bullets[:4],  # Limit to 4 bullets
+                'visual_description': f'Content slide {slide_num - 1}'
+            })
+            slide_num += 1
+    
+    logger.info(f"[FALLBACK] Created {len(slides)} slides from fallback mechanism")
+    
+    return {
+        'presentation': {
+            'title': topic,
+            'num_slides': len(slides)
+        },
+        'slides': slides
+    }
 
 
 class GroqPresentationGenerator:
     """Generate presentation structure using Groq API"""
     
-    def __init__(self, topic: str, raw_content: str, target_audience: str, tone: str, num_slides: int = None, enable_chunking: bool = False, enable_visuals: bool = True):
+    # Font selection mapping based on subject and professionalism
+    SUBJECT_FONT_CONFIGS = {
+        # General - Balanced modern look
+        'general': {
+            'title': 'Calibri',
+            'heading': 'Calibri',
+            'content': 'Arial'
+        },
+        
+        # English - Literary, elegant serif fonts
+        'english': {
+            'title': 'Georgia',
+            'heading': 'Garamond',
+            'content': 'Times New Roman'
+        },
+        
+        # Urdu - Specialized Nastaliq font with professional presentation
+        'urdu': {
+            'title': 'Noto Nastaliq Urdu',  # Beautiful traditional Urdu script
+            'heading': 'Segoe UI',  # Good Unicode support for Urdu
+            'content': 'Noto Nastaliq Urdu'  # Consistent Urdu typography
+        },
+        
+        # Science - Professional clean look
+        'science': {
+            'title': 'Cambria',
+            'heading': 'Calibri',
+            'content': 'Arial'
+        },
+        
+        # Biology - Professional academic style
+        'biology': {
+            'title': 'Cambria',
+            'heading': 'Calibri',
+            'content': 'Garamond'
+        },
+        
+        # Physics - Modern technical look
+        'physics': {
+            'title': 'Calibri',
+            'heading': 'Segoe UI',
+            'content': 'Consolas'  # Monospace for equations
+        },
+        
+        # Medical - Professional clinical appearance
+        'medical': {
+            'title': 'Georgia',
+            'heading': 'Cambria',
+            'content': 'Arial'
+        },
+        
+        # IT - Technical, modern monospace-friendly
+        'it': {
+            'title': 'Segoe UI',
+            'heading': 'Calibri',
+            'content': 'Courier New'
+        },
+        
+        # Engineering - Technical precision
+        'engineering': {
+            'title': 'Calibri',
+            'heading': 'Trebuchet MS',
+            'content': 'Arial'
+        },
+    }
+    
+    def __init__(self, topic: str, raw_content: str, target_audience: str, tone: str, subject: str = 'general', num_slides: int = None, enable_chunking: bool = False, enable_visuals: bool = True):
         self.topic = topic
         self.raw_content = raw_content
         self.target_audience = target_audience
         self.tone = tone
+        self.subject = subject if subject in self.SUBJECT_FONT_CONFIGS else 'general'  # Validate subject
         self.num_slides = num_slides  # User-specified slide count (optional)
+        
+        # Get font configuration based on subject
+        self.font_config = self.SUBJECT_FONT_CONFIGS.get(self.subject, self.SUBJECT_FONT_CONFIGS['general'])
         
         # AUTO-ENABLE CHUNKING: Check both content length criteria
         # 1. Auto-chunk if content >= 300 words (intelligent processing threshold)
@@ -133,12 +315,33 @@ class GroqPresentationGenerator:
         # IMPORTANT: If user specified exact slide count, always use single method
         # because chunking doesn't respect num_slides properly
         if self.enable_chunking and not self.num_slides:
-            return self._generate_chunked()
+            result = self._generate_chunked()
         else:
-            return self._generate_single()
+            result = self._generate_single()
+        
+        # SAFETY CHECK: Ensure result is always a dict
+        if isinstance(result, list):
+            # If we got a list of slides, wrap it in proper structure
+            result = {
+                'presentation_title': self.topic,
+                'topic': self.topic,
+                'target_audience': self.target_audience,
+                'tone': self.tone,
+                'subject': self.subject,
+                'total_slides': len(result),
+                'slides': result,
+                'metadata': {
+                    'generated_with_chunking': self.enable_chunking,
+                    'number_of_chunks': 1
+                }
+            }
+        
+        return result
     
     def _generate_single(self) -> dict:
         """Generate presentation from single content (standard flow)"""
+        import logging
+        logger = logging.getLogger(__name__)
         
         try:
             prompt = self._build_prompt()
@@ -170,6 +373,9 @@ class GroqPresentationGenerator:
             
             response_text = message.choices[0].message.content
             
+            # Log response for debugging (first 500 chars)
+            logger.debug(f"[GROQ RESPONSE] Subject: {self.subject}, Length: {len(response_text)}, Preview: {response_text[:500]}")
+            
             # Parse JSON from response - look for array or object
             json_start = response_text.find('[')
             if json_start == -1:
@@ -178,8 +384,22 @@ class GroqPresentationGenerator:
             else:
                 json_end = response_text.rfind(']') + 1
             
+            # If JSON not found in response, try fallback immediately
             if json_start == -1 or json_end <= json_start:
-                raise ValueError("No valid JSON found in Groq response")
+                logger.warning(f"[JSON NOT FOUND] Groq returned non-JSON format, using fallback mechanism")
+                try:
+                    # Use fallback to extract slides from markdown/text response
+                    num_slides = self.num_slides or 5
+                    fallback_result = generate_fallback_slides(
+                        response_text, 
+                        self.topic, 
+                        num_slides
+                    )
+                    logger.info(f"[FALLBACK SUCCESS] Generated {len(fallback_result['slides'])} slides from markdown response")
+                    return fallback_result
+                except Exception as fallback_error:
+                    logger.error(f"[FALLBACK FAILED] Could not convert response to slides: {str(fallback_error)[:100]}")
+                    raise ValueError(f"No valid JSON found and fallback conversion failed: {str(fallback_error)[:100]}")
             
             json_str = response_text[json_start:json_end]
             
@@ -187,8 +407,9 @@ class GroqPresentationGenerator:
             try:
                 json_str_repaired = repair_json_string(json_str)
                 presentation_json = json.loads(json_str_repaired)
+                logger.info(f"[JSON SUCCESS] Repaired and parsed successfully")
                 
-                # ENFORCE 4-8 BULLET POINT REQUIREMENT
+                # ENFORCE 4-6 BULLET POINT REQUIREMENT
                 if 'slides' in presentation_json:
                     for slide in presentation_json['slides']:
                         self._extract_slide_bullets(slide)
@@ -196,16 +417,36 @@ class GroqPresentationGenerator:
                 return presentation_json
             except json.JSONDecodeError as repair_error:
                 # If repair didn't work, try original JSON
+                logger.warning(f"[JSON REPAIR FAILED] Trying original: {str(repair_error)[:100]}")
                 try:
                     presentation_json = json.loads(json_str)
+                    logger.info(f"[JSON ORIGINAL SUCCESS] Original JSON parsed")
                     return presentation_json
                 except json.JSONDecodeError as original_error:
-                    # Detailed error reporting
-                    error_msg = f"JSON parsing failed after repair attempt. "
-                    error_msg += f"Repair error: {str(repair_error)}. "
-                    error_msg += f"Original error: {str(original_error)}. "
-                    error_msg += f"JSON preview: {json_str[:200]}..."
-                    raise ValueError(error_msg)
+                    # Log full response for debugging
+                    logger.error(f"[JSON PARSE FAILED] Full response:\n{response_text[:500]}")
+                    
+                    # Try fallback: extract slides from response text
+                    logger.warning(f"[FALLBACK] Attempting to generate slides from raw response text")
+                    try:
+                        # Use fallback slide generation
+                        num_slides = self.num_slides or 5
+                        fallback_result = generate_fallback_slides(
+                            response_text, 
+                            self.topic, 
+                            num_slides
+                        )
+                        logger.info(f"[FALLBACK SUCCESS] Generated {len(fallback_result['slides'])} slides using fallback mechanism")
+                        return fallback_result
+                    except Exception as fallback_error:
+                        # If fallback also fails, raise detailed error
+                        error_msg = f"JSON parsing failed. "
+                        error_msg += f"Subject: {self.subject}. "
+                        error_msg += f"Repair error: {str(repair_error)[:80]}. "
+                        error_msg += f"Original error: {str(original_error)[:80]}. "
+                        error_msg += f"Fallback error: {str(fallback_error)[:80]}. "
+                        error_msg += f"JSON preview: {json_str[:100]}..."
+                        raise ValueError(error_msg)
                     
         except Exception as e:
             error_str = str(e)
@@ -214,11 +455,12 @@ class GroqPresentationGenerator:
             if "rate_limit_exceeded" in error_str or "tokens per minute" in error_str or "Request too large" in error_str:
                 # Token limit exceeded - suggest retry with chunking
                 suggestion = "Content is too large for single request. Retrying with automatic chunking..."
-                print(f"[TOKEN LIMIT ERROR] {suggestion}")
+                logger.warning(f"[TOKEN LIMIT ERROR] {suggestion}")
                 # Auto-enable chunking and retry
                 if not self.enable_chunking:
                     self.enable_chunking = True
-                    print("[AUTO-RETRY] Retrying with chunking enabled...")
+                    logger.info("[AUTO-RETRY] Retrying with chunking enabled...")
+
                     return self._generate_chunked()
                 else:
                     raise Exception(f"Even with chunking, token limit exceeded: {str(e)}")
@@ -332,7 +574,7 @@ class GroqPresentationGenerator:
                             chunk_slides = self._generate_fallback_slides(chunk, chunk_idx)
                             break
                 
-                # ENFORCE 4-8 BULLET POINT REQUIREMENT FOR EACH SLIDE
+                # ENFORCE 4-6 BULLET POINT REQUIREMENT FOR EACH SLIDE
                 if isinstance(chunk_slides, list):
                     for slide in chunk_slides:
                         if isinstance(slide, dict):
@@ -365,6 +607,70 @@ class GroqPresentationGenerator:
             
         except Exception as e:
             raise Exception(f"Error generating chunked presentation: {str(e)}")
+    
+    def _get_subject_guidelines(self) -> str:
+        """Return subject-specific guidelines for slide generation"""
+        
+        guidelines = {
+            'general': """• Focus on key takeaways and main ideas
+• Use accessible language for general audience
+• Balance theory with practical examples""",
+            
+            'english': """• Emphasize literary analysis and critical thinking
+• Include relevant quotes and textual references
+• Focus on themes, motifs, and character development
+• Use sophisticated vocabulary and rhetorical devices""",
+            
+            'urdu': """🇵🇰 URDU LANGUAGE PRESENTATION GUIDELINES:
+• تمام عنوانات اور نکات اردو میں ہوں (All titles and points in Urdu)
+• اردو لسانی اصول کے مطابق تحریر کریں (Write according to Urdu linguistic rules)
+• نستعلیق یا نسخ رسم الخط کو سہل بنائیں (Maintain readable Urdu script)
+• ثقافتی اور تاریخی تناظر شامل کریں (Include cultural and historical context)
+• اردو ضرب الاثل اور محاورات استعمال کریں (Use Urdu idioms and expressions)
+• عام اردو سے رسمی/فارسی اردو میں لکھیں (Write in formal/literary Urdu)
+• ہر نکتے کو 8-15 الفاظ میں محدود رکھیں (Keep each point to 8-15 Urdu words)
+• جدید اردو تلفظ اور لکھائی اپنائیں (Use modern Urdu pronunciation and writing)
+• مقامی حوالہ جات اور مثالیں شامل کریں (Include local references and examples)
+• اردو شاعری یا حکمتیں استعمال کریں جہاں موزوں ہو (Use poetry or wisdom where appropriate)""",
+            
+            'science': """• Include scientific data, statistics, and evidence
+• Explain concepts with proper scientific terminology
+• Reference peer-reviewed research where applicable
+• Use diagrams or visual representations in descriptions
+• Include mathematical formulas if relevant (formatted clearly)""",
+            
+            'biology': """• Focus on biological processes and lifecycles
+• Include anatomical details and functional relationships
+• Explain mechanisms at molecular, cellular, and organism levels
+• Use proper taxonomic classifications
+• Highlight evolutionary perspectives""",
+            
+            'physics': """• Include mathematical formulas and physical equations (formatted properly)
+• Define all physical quantities and units clearly
+• Explain underlying principles and laws
+• Show relationships between variables
+• Include experimental evidence and measurements""",
+            
+            'medical': """• Use correct medical terminology and Latin names
+• Focus on clinical significance and patient outcomes
+• Include evidence-based treatment approaches
+• Explain pathophysiology clearly
+• Highlight safety considerations and best practices""",
+            
+            'it': """• Use technical terminology accurately
+• Include code snippets, algorithms, or architecture diagrams (in text)
+• Explain system design and technical workflows
+• Focus on scalability, security, and performance
+• Include best practices and industry standards""",
+            
+            'engineering': """• Include technical specifications and measurements
+• Explain design principles and structural relationships
+• Focus on materials, forces, and efficiency
+• Include calculations and technical ratios
+• Highlight safety margins and quality standards"""
+        }
+        
+        return guidelines.get(self.subject, guidelines['general'])
     
     def _calculate_optimal_slides(self, word_count: int) -> dict:
         """
@@ -417,46 +723,182 @@ class GroqPresentationGenerator:
     
     def _extract_slide_bullets(self, slide: dict) -> dict:
         """
-        Validate and ensure slide has 4-8 bullet points (except title/conclusion slides).
+        Validate and ensure slide has 4-6 professional bullet points.
+        Generates professional bullets if missing or insufficient.
         
         Professional requirements:
-        - Each content slide must have 4-8 bullet points (not less, not more)
+        - Each content slide must have 4-6 bullet points (mandatory)
         - Title slides can have 0 bullets (by design)
-        - Conclusion slides should have 4-8 bullets or get padded
-        - Each point should be detailed and informative
-        - No points can be empty or trivial
+        - Each point: 8-15 words, specific and actionable
+        - No empty or trivial points
+        - Professional tone and terminology
+        - Font configuration based on subject
         
-        Returns: Validated slide with proper bullet count
+        Returns: Validated slide with professional bullets and fonts
         """
         slide_type = slide.get('type', slide.get('slide_type', 'standard')).lower()
         bullets = slide.get('bullets', [])
         
         # Title slides are allowed to have 0 bullets
         if slide_type in ['title', 'intro']:
+            # Add font config for title slides
+            slide['fonts'] = {
+                'title_font': self.font_config['title'],
+                'subtitle_font': self.font_config['heading'],
+                'content_font': self.font_config['content']
+            }
             return slide
         
         # Ensure bullets is a list
         if not isinstance(bullets, list):
             bullets = []
         
-        # Filter out empty bullets
-        bullets = [b for b in bullets if b and str(b).strip()]
+        # Filter out empty bullets and clean up
+        bullets = [
+            str(b).strip() 
+            for b in bullets 
+            if b and str(b).strip() and str(b).strip() not in ['None', 'null', '']
+        ]
         
         current_count = len(bullets)
         
+        # Generate professional bullets if missing or insufficient
         if current_count < 4:
-            # Too few bullets - add placeholder guidance
-            while len(bullets) < 4:
-                bullets.append("Additional point: [Content detail]")
+            content = slide.get('content', slide.get('subtitle', ''))
+            title = slide.get('title', 'Topic')
+            
+            # Generate professional bullets from content/title
+            generated_bullets = self._generate_professional_bullets(
+                title=title,
+                content=content,
+                subject=self.subject,
+                needed_count=4 - current_count
+            )
+            
+            bullets.extend(generated_bullets)
         
-        elif current_count > 8:
-            # Too many bullets - consolidate or truncate to 8 most important
-            bullets = bullets[:8]
+        # Trim to max 6 bullets per slide
+        if len(bullets) > 6:
+            bullets = bullets[:6]
         
         slide['bullets'] = bullets
         slide['bullet_count'] = len(bullets)
         
+        # Add professional font configuration
+        slide['fonts'] = {
+            'title_font': self.font_config['title'],
+            'heading_font': self.font_config['heading'],
+            'content_font': self.font_config['content']
+        }
+        
         return slide
+    
+    def _generate_professional_bullets(self, title: str, content: str, subject: str, needed_count: int = 4) -> list:
+        """
+        Generate professional bullet points from slide title and content.
+        
+        Args:
+            title: Slide title
+            content: Slide content/description
+            subject: Subject area for context
+            needed_count: Number of bullets to generate
+        
+        Returns: List of professional bullet strings
+        """
+        bullets = []
+        
+        # Extract key phrases from content
+        sentences = [s.strip() for s in content.split('.') if s.strip()]
+        
+        # Priority 1: Key phrase from title
+        if title and len(title) > 5:
+            bullets.append(f"Key focus: {title.strip()}")
+        
+        # Priority 2: First/main content points
+        if sentences:
+            for i, sentence in enumerate(sentences[:needed_count-1]):
+                if len(sentence) > 10:
+                    # Clean and truncate to 15 words max
+                    words = sentence.split()[:15]
+                    bullet_text = ' '.join(words)
+                    if len(bullet_text) > 8:
+                        bullets.append(bullet_text)
+        
+        # Priority 3: Subject-specific professional bullets
+        subject_bullets = self._get_subject_bullets(subject)
+        while len(bullets) < needed_count and subject_bullets:
+            bullets.append(subject_bullets.pop(0))
+        
+        # Priority 4: Generic professional bullets if still needed
+        generic_bullets = [
+            "Relevant application to real-world scenarios",
+            "Professional implementation considerations",
+            "Performance and efficiency metrics",
+            "Quality assurance and validation",
+            "Risk management and mitigation strategies",
+            "Stakeholder communication and reporting"
+        ]
+        
+        while len(bullets) < needed_count and generic_bullets:
+            bullets.append(generic_bullets.pop(0))
+        
+        # Return exactly the needed count
+        return bullets[:needed_count]
+    
+    def _get_subject_bullets(self, subject: str) -> list:
+        """Get professional subject-specific bullet templates"""
+        subject_bullets_map = {
+            'urdu': [
+                'اہم نکات اور تفصیلات',
+                'عملی استعمال اور مثالیں',
+                'مختلف نقطہ نظر اور تجزیہ',
+                'حقائق اور شواہد'
+            ],
+            'english': [
+                'Core concepts and details',
+                'Practical applications',
+                'Comparative analysis',
+                'Evidence and examples'
+            ],
+            'science': [
+                'Scientific principles involved',
+                'Experimental methodology',
+                'Quantifiable results and metrics',
+                'Practical applications'
+            ],
+            'biology': [
+                'Biological mechanisms',
+                'Cellular processes',
+                'Organismal responses',
+                'Evolutionary significance'
+            ],
+            'physics': [
+                'Physical principles at work',
+                'Mathematical relationships',
+                'Real-world applications',
+                'Energy and force considerations'
+            ],
+            'medical': [
+                'Clinical significance',
+                'Diagnostic indicators',
+                'Treatment approaches',
+                'Patient outcomes'
+            ],
+            'it': [
+                'Technical architecture',
+                'System components',
+                'Performance optimization',
+                'Security considerations'
+            ],
+            'engineering': [
+                'Engineering principles',
+                'Design specifications',
+                'Material considerations',
+                'Performance standards'
+            ]
+        }
+        
+        return subject_bullets_map.get(subject.lower(), [])
         
     
     def _clean_slide_metadata(self, slide: dict) -> None:
@@ -493,7 +935,7 @@ class GroqPresentationGenerator:
             chunk_idx: Chunk index number
             
         Returns:
-            List of slide dictionaries with 4-8 bullets
+            List of slide dictionaries with 4-6 bullets
         """
         try:
             sentences = [s.strip() for s in chunk_text.split('.') if len(s.strip()) > 20]
@@ -514,7 +956,7 @@ class GroqPresentationGenerator:
             for i in range(0, len(sentences), bullets_per_slide):
                 slide_bullets = sentences[i:i+bullets_per_slide]
                 
-                # Ensure we have 4-8 bullets
+                # Ensure we have 4-6 bullets
                 if len(slide_bullets) < 4 and i + bullets_per_slide < len(sentences):
                     slide_bullets = sentences[i:i+6]
                 
@@ -574,10 +1016,11 @@ SLIDE GENERATION REQUIREMENTS
 ================================================================================
 🎯 BULLET POINTS PER SLIDE:
 • Minimum: 4 bullet points per slide
-• Maximum: 8 bullet points per slide
-• EVERY slide MUST have 4-8 points
+• Maximum: 6 bullet points per slide
+• EVERY slide MUST have 4-6 points
 • Target: {slides_per_chunk} slides ({slides_recommended} recommended)
-• No exceptions - professional standard is 4-8 points
+• No exceptions - professional standard is 4-6 points
+• FORMAT: Use numbered bullets (1. 2. 3. 4.) or professional icons (▸ ▪ ◆ ■)
 
 📝 BULLET POINT QUALITY:
 1. Each point: 8-15 words (concise but detailed)
@@ -601,9 +1044,7 @@ PROFESSIONAL SYMBOLS & FORMATTING
 Use professional symbols instead of basic bullets:
 • 4 bullets: ▪ ▸ ◆ ■  (balanced variety)
 • 5 bullets: ▪ ▸ ◆ ■ ★  (add emphasis marker)
-• 6 bullets: ▪ ▸ ◆ ■ ★ ●  (comprehensive)
-• 7 bullets: ▪ ▸ ◆ ■ ★ ● ✓  (checkmark for last)
-• 8 bullets: ▪ ▸ ◆ ■ ★ ● ✓ →  (full palette)
+• 6 bullets: ▪ ▸ ◆ ■ ★ ●  (comprehensive - maximum)
 
 ================================================================================
 EMOJI USAGE (SELECTIVE & PROFESSIONAL)
@@ -638,10 +1079,12 @@ OUTPUT REQUIREMENTS
 ================================================================================
 1. Output ONLY valid JSON array of slides - no markdown, explanations, or code
 2. Generate {slides_per_chunk} slides total
-3. Each slide MUST have exactly 4-8 bullet points (mandatory)
+3. Each slide MUST have exactly 4-6 bullet points (mandatory)
 4. All bullets must be from the chunk content (no external info)
 5. Maintain "{self.tone}" tone throughout all content
 6. Professional, corporate-quality presentation
+7. BULLET FORMAT: Each bullet MUST include number or icon prefix
+   Example: "1. First point" or "▸ First point" NOT just "First point"
 
 ================================================================================
 RESPONSE FORMAT (VALID JSON ARRAY ONLY)
@@ -654,44 +1097,114 @@ Return a JSON array with 4-8 bullet points per slide. Example structure:
 
 IMPORTANT: Return ONLY a valid JSON array. Do NOT include any other text.
 
-CRITICAL: Every slide must have 4-8 bullets. No slide should have fewer than 4
-or more than 8 points. Content preservation is essential.
+CRITICAL: Every slide must have 4-6 bullets. No slide should have fewer than 4
+or more than 6 points. Content preservation is essential.
 """
     
     def _build_prompt(self) -> str:
         """Build comprehensive prompt for slide generation using Groq API"""
         
-        # Calculate optimal slide count
-        slide_calc = self._calculate_optimal_slides(self.content_word_count)
-        num_slides = slide_calc['recommended']
+        # Determine slide count
+        if self.num_slides:
+            # User specified exact slide count - MUST respect this
+            num_slides = self.num_slides
+            slide_instruction = f"EXACT number of slides required: {num_slides} slides (NOT more, NOT less)"
+        else:
+            # Calculate recommended slides
+            slide_calc = self._calculate_optimal_slides(self.content_word_count)
+            num_slides = slide_calc['recommended']
+            slide_instruction = f"Target slides: {num_slides} slides (recommended based on content length)"
+        
+        # Build subject-specific guidelines
+        subject_guidelines = self._get_subject_guidelines()
+        
+        # Language instruction - ONLY add Urdu if subject is 'urdu', otherwise enforce English
+        language_instruction = ""
+        if self.subject == 'urdu':
+            language_instruction = """
+LANGUAGE REQUIREMENT - URDU ONLY:
+✓ Generate ALL slide content ENTIRELY in Urdu language
+✓ Use formal/literary Urdu (اردو فارسی کے ساتھ)
+✓ Apply correct Urdu grammar rules and syntax
+✓ Use Urdu script consistently (نستعلیق یا نسخ)
+✓ Translate/adapt English technical terms professionally into Urdu
+✓ Each bullet point MUST be in Urdu (8-15 اردو الفاظ کی حد تک)
+✓ Titles in Urdu with proper Urdu capitalization
+✓ Include culturally relevant examples and metaphors
+✓ Use professional Urdu terminology for the subject matter
+✓ Maintain proper diacritics (اعراب) where helpful for clarity
+✓ JSON keys remain in English, but all text content in Urdu
+"""
+        else:
+            # For ALL other subjects (general, english, science, etc.) - ENFORCE ENGLISH
+            language_instruction = """
+LANGUAGE REQUIREMENT - ENGLISH ONLY:
+✓ Generate ALL slide content ENTIRELY in professional English
+✓ Use clear, accessible English language
+✓ Write in formal, professional tone
+✓ Use proper English grammar and spelling
+✓ Create humanized, engaging content
+✓ Each bullet point in English (8-15 words maximum)
+✓ NO Urdu, NO mixed language, NO translations
+✓ Titles in English with proper English capitalization
+✓ Include relevant examples and practical applications
+✓ Use professional terminology appropriate for {self.subject.upper()} subject
+✓ Make content engaging and easy to understand
+"""
         
         return f"""You are an expert professional presentation designer. Create comprehensive, high-quality slides.
 
-PRESENTATION GUIDELINES:
+PRESENTATION DETAILS:
 Topic: {self.topic}
+Subject: {self.subject.upper()}
 Audience: {self.target_audience}
 Tone: {self.tone}
-Word Count: {self.content_word_count} words
-Recommended Slides: {num_slides}
+Content Length: {self.content_word_count} words
+{slide_instruction}
 
-PROFESSIONAL WORD-TO-SLIDE RATIOS:
-• 1000+ words: 3 slides per 100 words
-• 500-999 words: 4-5 slides per 100 words
-• 300-499 words: 4-5 slides per 100 words
-• 100-299 words: 5-8 slides per 100 words
+SUBJECT-SPECIFIC GUIDELINES:
+{subject_guidelines}
 
-MANDATORY REQUIREMENTS:
-✓ EVERY slide MUST have 4-8 bullet points (NO exceptions)
-✓ Each point: 8-15 words max
-✓ Include specific numbers, metrics, evidence from content
-✓ Content from provided text ONLY
-✓ Professional symbols only: ▪ ▸ ◆ ■ ★ ● ✓ →
-✓ Emojis ONLY when contextually appropriate (max 1-2 per slide)
-✓ ALL information from content must be covered
-✓ No typos, no errors, professional quality
+{language_instruction}
 
-CONTENT:
+CRITICAL JSON FORMAT REQUIREMENT:
+⚠️ RESPOND WITH ONLY A JSON ARRAY - NO MARKDOWN, NO TEXT BEFORE/AFTER
+⚠️ START WITH [ IMMEDIATELY
+⚠️ END WITH ] IMMEDIATELY
+⚠️ NO explanations, NO markdown formatting, ONLY VALID JSON
+
+EXACT RESPONSE FORMAT (REQUIRED):
+[
+  {{"slide_number": 1, "title": "Title", "subtitle": "", "content": "Description", "bullets": ["Point 1", "Point 2", "Point 3", "Point 4"], "slide_type": "title"}},
+  {{"slide_number": 2, "title": "Title 2", "subtitle": "", "content": "Description 2", "bullets": ["Point 1", "Point 2", "Point 3", "Point 4"], "slide_type": "content"}}
+]
+
+MANDATORY SLIDE REQUIREMENTS:
+✓ EXACTLY {num_slides} slides in the array (NOT more, NOT less)
+✓ EVERY slide has 4-8 bullet points EXACTLY
+✓ Bullet format: Start each bullet with "1. 2. 3." or "▸ ▪ ◆ ■ ★" icon
+✓ Example bullets: "1. First point here" or "▸ Point using icon"
+✓ Each bullet: 8-15 words maximum (not counting number/icon prefix)
+✓ slide_number: 1, 2, 3... in sequence
+✓ title: Main heading for the slide
+✓ subtitle: Secondary title (can be empty string)
+✓ content: Brief summary of slide (2-3 sentences)
+✓ bullets: Array of 4-8 string bullet points WITH numbers or icons
+✓ slide_type: "title" for first, "content" for others
+✓ No markdown in any field
+✓ No asterisks, no formatting, plain text only
+
+PROFESSIONAL CONTENT REQUIREMENTS:
+✓ Use ONLY content from the provided text
+✓ Maintain logical flow from slide to slide
+✓ 4-6 bullet points per slide (NOT less, NOT more)
+✓ Bullet numbering/icons: "1. 2. 3. 4." or "▸ ▪ ◆ ■" format
+✓ Professional language and correct terminology
+✓ NO repetition between slides
+✓ NO placeholder text like "Lorem ipsum"
+✓ Humanized and engaging presentation style
+
+CONTENT TO CONVERT:
 {self.raw_content}
 
-OUTPUT: Valid JSON array with {num_slides} slides, each with 4-8 bullets from content.
-"""
+RESPOND NOW WITH ONLY THE JSON ARRAY - NOTHING ELSE."""

@@ -1,0 +1,54 @@
+"""
+Template Registry and Loader
+Manages all available templates and provides convenient access
+"""
+
+from .rose_elegance import RoseEleganceTemplate
+from .warm_spectrum import WarmSpectrumTemplate
+from .warm_blue import WarmBlueTemplate
+
+
+class TemplateRegistry:
+    """
+    Registry for all presentation templates
+    Provides centralized access and template management
+    """
+    
+    # Available templates mapping
+    TEMPLATES = {
+        'warm_blue': WarmBlueTemplate,  # Default template
+        'rose_elegance': RoseEleganceTemplate,
+        'premium_blush': RoseEleganceTemplate,  # Alias for rose_elegance
+        'warm_spectrum': WarmSpectrumTemplate,
+        'ocean_sunset': WarmSpectrumTemplate,  # Alias for warm_spectrum
+    }
+    
+    # Default template
+    DEFAULT_TEMPLATE = 'warm_blue'
+    
+    @classmethod
+    def get_template(cls, template_name=None):
+        """
+        Get a template instance by name
+        
+        Args:
+            template_name: Name of template (default: 'rose_elegance')
+            
+        Returns:
+            Template instance
+        """
+        if not template_name:
+            template_name = cls.DEFAULT_TEMPLATE
+        
+        template_class = cls.TEMPLATES.get(template_name, RoseEleganceTemplate)
+        return template_class()
+    
+    @classmethod
+    def get_available_templates(cls):
+        """Get list of all available template names"""
+        return list(cls.TEMPLATES.keys())
+    
+    @classmethod
+    def is_valid_template(cls, template_name):
+        """Check if a template name is valid"""
+        return template_name in cls.TEMPLATES

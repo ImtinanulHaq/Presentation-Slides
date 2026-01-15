@@ -3,10 +3,11 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 const API_TOKEN = process.env.REACT_APP_API_TOKEN || 'b1bf242b1c8a2b638e79f0b282599ffafea3faf3';
 
-// Debug: Log token info (remove in production)
-console.log('[API] Base URL:', API_BASE_URL);
-console.log('[API] Token configured:', API_TOKEN ? 'YES' : 'NO');
-console.log('[API] Token length:', API_TOKEN.length);
+// Debug: Log token info
+if (process.env.NODE_ENV === 'development') {
+  console.log('[API] Base URL:', API_BASE_URL);
+  console.log('[API] Token configured:', API_TOKEN ? 'YES' : 'NO');
+}
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -14,13 +15,19 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
     'Authorization': `Token ${API_TOKEN}`,
   },
+  timeout: 600000, // 600 second timeout (10 minutes) - matches backend for large content processing
 });
 
 // Add request interceptor for debugging
 apiClient.interceptors.request.use(
   config => {
-    console.log('[API REQUEST]', config.method.toUpperCase(), config.url);
-    console.log('[API HEADERS]', config.headers);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API REQUEST]', config.method.toUpperCase(), config.url);
+    }
+    // Ensure token is always in headers
+    if (API_TOKEN) {
+      config.headers.Authorization = `Token ${API_TOKEN}`;
+    }
     return config;
   },
   error => Promise.reject(error)
@@ -29,31 +36,35 @@ apiClient.interceptors.request.use(
 // Add response interceptor for better error handling
 apiClient.interceptors.response.use(
   response => {
-    console.log('[API RESPONSE]', response.status, response.statusText);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API RESPONSE] Success -', response.status, response.statusText);
+    }
     return response;
   },
   error => {
+    console.error('[API ERROR]', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data
+    });
+
     if (error.response?.status === 401) {
-      console.error('[AUTH ERROR] 401 Unauthorized - Invalid token');
-      console.error('[AUTH] Token being sent:', API_TOKEN.substring(0, 20) + '...');
+      console.error('[AUTH ERROR] 401 - Invalid or expired token');
     }
     if (error.response?.status === 403) {
-      console.error('[AUTH ERROR] 403 Forbidden - User does not have permission');
+      console.error('[PERM ERROR] 403 - Permission denied');
+    }
+    if (error.response?.status === 404) {
+      console.error('[NOT FOUND] 404 - Resource not found');
     }
     if (error.response?.status === 400) {
-      console.error('[VALIDATION ERROR] 400 Bad Request');
-      console.error('[VALIDATION ERRORS]', error.response.data);
-      // Print each validation error clearly
-      if (typeof error.response.data === 'object') {
-        Object.entries(error.response.data).forEach(([key, value]) => {
-          console.error(`  - ${key}:`, Array.isArray(value) ? value.join(', ') : value);
-        });
-      }
+      console.error('[VALIDATION ERROR]', error.response.data);
     }
-    console.error('[API ERROR] Status:', error.response?.status, 'URL:', error.config?.url);
-    if (error.response?.data) {
-      console.error('[BACKEND RESPONSE]', JSON.stringify(error.response.data, null, 2));
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      console.error('[CONNECTION ERROR] Cannot reach backend at', API_BASE_URL);
     }
+
     return Promise.reject(error);
   }
 );

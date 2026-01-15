@@ -15,7 +15,7 @@ class SlideSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'slide_number', 'slide_type', 'title', 'subtitle',
             'content', 'bullets', 'visuals', 'speaker_notes',
-            'order', 'created_at', 'updated_at'
+            'order', 'created_at', 'updated_at', 'fonts'
         ]
 
 
@@ -28,11 +28,12 @@ class PresentationSerializer(serializers.ModelSerializer):
         model = Presentation
         fields = [
             'id', 'title', 'topic', 'raw_content', 'target_audience',
-            'tone', 'description', 'json_structure', 'slides',
+            'tone', 'subject', 'title_font', 'heading_font', 'content_font',
+            'description', 'json_structure', 'slides',
             'total_slides', 'created_by', 'is_published',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'json_structure', 'slides']
+        read_only_fields = ['created_at', 'updated_at', 'json_structure', 'slides', 'title_font', 'heading_font', 'content_font']
 
     def get_total_slides(self, obj):
         return obj.slides.count()
@@ -51,10 +52,17 @@ class PresentationGenerateSerializer(serializers.Serializer):
         choices=['professional', 'casual', 'academic', 'persuasive'],
         required=True
     )
+    subject = serializers.ChoiceField(
+        choices=['general', 'english', 'urdu', 'science', 'biology', 'physics', 'medical', 'it', 'engineering'],
+        required=False,
+        default='general'
+    )
     presentation_title = serializers.CharField(max_length=255, required=False, allow_blank=True)
     num_slides = serializers.IntegerField(required=False, allow_null=True, min_value=3, max_value=100)
     enable_chunking = serializers.BooleanField(required=False, default=False)
     enable_visuals = serializers.BooleanField(required=False, default=True)
+    template = serializers.CharField(max_length=50, required=False, default='warm_blue')
+    slide_ratio = serializers.CharField(max_length=10, required=False, default='16:9')
     
     def validate_num_slides(self, value):
         """Handle num_slides validation and conversion"""

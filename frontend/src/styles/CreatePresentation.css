@@ -1,0 +1,384 @@
+/* Create Presentation Page Styling */
+
+.create-presentation-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.create-form-card {
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e0e0e0 !important;
+  padding: 40px !important;
+}
+
+.create-form-card h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 10px;
+}
+
+.form-subtitle {
+  font-size: 1.05rem;
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+/* Template Selector Styling */
+.template-selection-card {
+  background: linear-gradient(135deg, #f9fbfd 0%, #f5f8fa 100%) !important;
+  border-radius: 12px !important;
+  border: 2px solid #e8eef5 !important;
+  padding: 25px !important;
+  margin-bottom: 25px;
+  box-shadow: 0 4px 12px rgba(47, 102, 144, 0.08) !important;
+  transition: all 0.3s ease !important;
+}
+
+.template-selection-card:hover {
+  box-shadow: 0 6px 16px rgba(47, 102, 144, 0.12) !important;
+  border-color: #d4e4f0 !important;
+}
+
+.template-selection-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2f6690;
+}
+
+.template-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 15px;
+}
+
+.template-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.template-card:hover {
+  border-color: #81c3d7;
+  box-shadow: 0 8px 24px rgba(129, 195, 215, 0.25);
+  transform: translateY(-4px);
+}
+
+.template-card.selected {
+  border-color: #2f6690;
+  background: linear-gradient(135deg, #f0f5fb 0%, #e8eff7 100%);
+  box-shadow: 0 8px 24px rgba(47, 102, 144, 0.2);
+}
+
+.template-color-preview {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: help;
+  transition: transform 0.2s ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.08);
+}
+
+.template-name {
+  margin: 10px 0 6px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.template-description {
+  margin: 0;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+  min-height: 24px;
+}
+
+.template-selected-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: linear-gradient(135deg, #2f6690 0%, #16425b 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 3px 8px rgba(47, 102, 144, 0.3);
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.form-input {
+  border-radius: 8px !important;
+  border: 1.5px solid #d0d0d0 !important;
+  font-size: 14px;
+  padding: 10px 14px !important;
+  transition: all 0.3s ease !important;
+}
+
+.form-input:hover {
+  border-color: #81c3d7 !important;
+  box-shadow: 0 2px 8px rgba(129, 195, 215, 0.2) !important;
+}
+
+.form-input:focus {
+  border-color: #2f6690 !important;
+  box-shadow: 0 4px 12px rgba(47, 102, 144, 0.2) !important;
+  outline: none;
+}
+
+.form-textarea {
+  border-radius: 8px !important;
+  border: 1.5px solid #d0d0d0 !important;
+  font-size: 14px;
+  padding: 12px 14px !important;
+  transition: all 0.3s ease !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.form-textarea:hover {
+  border-color: #81c3d7 !important;
+  box-shadow: 0 2px 8px rgba(129, 195, 215, 0.2) !important;
+}
+
+.form-textarea:focus {
+  border-color: #2f6690 !important;
+  box-shadow: 0 4px 12px rgba(47, 102, 144, 0.2) !important;
+  outline: none;
+}
+
+.form-select {
+  border-radius: 8px !important;
+  min-height: 40px !important;
+}
+
+/* Generate Button */
+.generate-button {
+  background: linear-gradient(90deg, #2f6690 0%, #16425b 100%) !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  height: 48px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 20px rgba(47, 102, 144, 0.25) !important;
+  transition: all 0.3s ease !important;
+}
+
+.generate-button:hover {
+  background: linear-gradient(90deg, #16425b 0%, #0f2a38 100%) !important;
+  box-shadow: 0 12px 30px rgba(47, 102, 144, 0.35) !important;
+  transform: translateY(-2px);
+}
+
+.generate-button:active {
+  transform: translateY(0);
+}
+
+/* Preview Cards */
+.preview-header-card {
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e0e0e0 !important;
+  padding: 30px !important;
+  margin-bottom: 30px !important;
+}
+
+.preview-header-card h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin: 0 0 20px 0;
+}
+
+.preview-card {
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+.preview-card .ant-card-head {
+  background: linear-gradient(90deg, #2f6690 0%, #16425b 100%) !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.preview-card .ant-card-head-title {
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+}
+
+.preview-card p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.slides-preview-card {
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+.slides-preview-card .ant-card-head {
+  background: linear-gradient(90deg, #2f6690 0%, #16425b 100%) !important;
+  border: none !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.slides-preview-card .ant-card-head-title {
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+}
+
+/* Preview Actions */
+.preview-actions {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid #e0e0e0 !important;
+  padding: 30px !important;
+}
+
+.preview-actions button {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  height: 45px !important;
+  min-width: 150px;
+  transition: all 0.3s ease !important;
+}
+
+.preview-actions .ant-btn-primary {
+  background: linear-gradient(90deg, #2f6690 0%, #16425b 100%) !important;
+  border: none !important;
+  box-shadow: 0 6px 15px rgba(47, 102, 144, 0.25) !important;
+}
+
+.preview-actions .ant-btn-primary:hover {
+  background: linear-gradient(90deg, #16425b 0%, #0f2a38 100%) !important;
+  box-shadow: 0 8px 20px rgba(47, 102, 144, 0.35) !important;
+  transform: translateY(-2px);
+}
+
+.preview-actions .ant-btn-default {
+  border: 2px solid #2f6690 !important;
+  color: #2f6690 !important;
+  background: white !important;
+}
+
+.preview-actions .ant-btn-default:hover {
+  border-color: #16425b !important;
+  color: #16425b !important;
+  background: #f0f5fa !important;
+  transform: translateY(-2px);
+}
+
+/* Form Labels */
+.create-form-card .ant-form-item-label > label {
+  font-weight: 600 !important;
+  color: #1a1a2e !important;
+  font-size: 15px;
+}
+
+/* Required Field Indicators */
+.create-form-card .ant-form-item-required::before {
+  color: #e74c3c;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .create-presentation-container {
+    padding: 10px;
+  }
+
+  .create-form-card {
+    padding: 20px !important;
+  }
+
+  .create-form-card h1 {
+    font-size: 1.5rem;
+  }
+
+  .form-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .preview-header-card h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .create-presentation-container {
+    padding: 8px;
+  }
+
+  .create-form-card {
+    padding: 15px !important;
+    border-radius: 8px !important;
+  }
+
+  .create-form-card h1 {
+    font-size: 1.2rem;
+  }
+
+  .form-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .form-input,
+  .form-textarea {
+    font-size: 13px !important;
+  }
+
+  .generate-button {
+    font-size: 14px !important;
+    height: 42px !important;
+  }
+
+  .preview-actions {
+    padding: 20px !important;
+  }
+
+  .preview-actions button {
+    width: 100% !important;
+    margin-bottom: 10px;
+  }
+}

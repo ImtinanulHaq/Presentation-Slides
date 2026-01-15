@@ -5,6 +5,53 @@ import json
 
 class Presentation(models.Model):
     """Model for presentations"""
+    SUBJECT_CHOICES = [
+        ('general', 'General'),
+        ('english', 'English'),
+        ('urdu', 'Urdu'),
+        ('science', 'Science'),
+        ('biology', 'Biology'),
+        ('physics', 'Physics'),
+        ('medical', 'Medical Field'),
+        ('it', 'IT Field'),
+        ('engineering', 'Engineering Field'),
+    ]
+    
+    FONT_CHOICES = [
+        # Serif Fonts (Professional, Academic)
+        ('georgia', 'Georgia'),
+        ('times', 'Times New Roman'),
+        ('garamond', 'Garamond'),
+        ('palatino', 'Palatino Linotype'),
+        ('book_antiqua', 'Book Antiqua'),
+        ('cambria', 'Cambria'),
+        
+        # Sans-Serif Fonts (Modern, Clean)
+        ('arial', 'Arial'),
+        ('calibri', 'Calibri'),
+        ('verdana', 'Verdana'),
+        ('tahoma', 'Tahoma'),
+        ('trebuchet', 'Trebuchet MS'),
+        ('segoe', 'Segoe UI'),
+        ('century_gothic', 'Century Gothic'),
+        ('helvetica', 'Helvetica'),
+        ('ubuntu', 'Ubuntu'),
+        ('droid_sans', 'Droid Sans'),
+        ('liberation_sans', 'Liberation Sans'),
+        
+        # Monospace Fonts (Code, Technical)
+        ('courier', 'Courier New'),
+        ('consolas', 'Consolas'),
+        
+        # Display Fonts (Creative, Casual)
+        ('comic_sans', 'Comic Sans MS'),
+        
+        # Urdu & International Fonts
+        ('noto_nastaliq', 'Noto Nastaliq Urdu'),
+        ('noto_naskh', 'Noto Naskh Arabic'),
+        ('segoe_urdu', 'Segoe UI (Urdu)'),
+    ]
+    
     title = models.CharField(max_length=255)
     topic = models.CharField(max_length=255, default='')
     raw_content = models.TextField(blank=True)
@@ -19,6 +66,25 @@ class Presentation(models.Model):
         ],
         default='professional'
     )
+    subject = models.CharField(
+        max_length=50,
+        choices=SUBJECT_CHOICES,
+        default='general'
+    )
+    template = models.CharField(
+        max_length=50,
+        default='warm_blue',  # Changed to warm_blue
+        help_text='Template name: warm_blue, rose_elegance, warm_spectrum, etc.'
+    )
+    slide_ratio = models.CharField(
+        max_length=10,
+        default='16:9',
+        choices=[('16:9', '16:9'), ('4:3', '4:3'), ('1:1', '1:1'), ('2:3', '2:3')],
+        help_text='Slide aspect ratio'
+    )
+    title_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='calibri')
+    heading_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='calibri')
+    content_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='arial')
     description = models.TextField(blank=True)
     json_structure = models.JSONField(default=dict, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -50,6 +116,7 @@ class Slide(models.Model):
     content = models.TextField(blank=True)
     bullets = models.JSONField(default=list, blank=True)
     visuals = models.JSONField(default=dict, blank=True)
+    fonts = models.JSONField(default=dict, blank=True)  # {title_font, heading_font, content_font}
     speaker_notes = models.TextField(blank=True)
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

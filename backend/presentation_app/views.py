@@ -59,10 +59,13 @@ class PresentationViewSet(viewsets.ModelViewSet):
             raw_content = serializer.validated_data['raw_content']
             target_audience = serializer.validated_data['target_audience']
             tone = serializer.validated_data['tone']
+            subject = serializer.validated_data.get('subject', 'general')
             presentation_title = serializer.validated_data.get('presentation_title', '')
-            num_slides = serializer.validated_data.get('num_slides')  # Optional user input
-            enable_chunking = serializer.validated_data.get('enable_chunking', False)  # Optional override
-            enable_visuals = serializer.validated_data.get('enable_visuals', True)  # Enable visual suggestions
+            num_slides = serializer.validated_data.get('num_slides')
+            enable_chunking = serializer.validated_data.get('enable_chunking', False)
+            enable_visuals = serializer.validated_data.get('enable_visuals', True)
+            template = serializer.validated_data.get('template', 'rose_elegance')  # Get template choice
+            slide_ratio = serializer.validated_data.get('slide_ratio', '16:9')  # Get slide ratio
             
             # Convert num_slides to int if provided
             if num_slides:
@@ -73,7 +76,7 @@ class PresentationViewSet(viewsets.ModelViewSet):
             
             # Log input for monitoring
             content_word_count = len(raw_content.split())
-            logger.info(f"Presentation request: topic={topic}, words={content_word_count}, audience={target_audience}, tone={tone}")
+            logger.info(f"Presentation request: topic={topic}, template={template}, subject={subject}, words={content_word_count}, audience={target_audience}, tone={tone}")
             
             try:
                 # Generate presentation structure using Groq API
@@ -83,6 +86,7 @@ class PresentationViewSet(viewsets.ModelViewSet):
                     raw_content=raw_content,
                     target_audience=target_audience,
                     tone=tone,
+                    subject=subject,  # New subject parameter for specialized formatting
                     num_slides=num_slides,  # Pass user-specified slide count (disables auto-chunking)
                     enable_chunking=enable_chunking,  # Optional manual override
                     enable_visuals=enable_visuals,  # Enable visual suggestions
@@ -91,12 +95,31 @@ class PresentationViewSet(viewsets.ModelViewSet):
                 # Generate presentation with automatic chunking if applicable
                 json_structure = generator.generate()
                 
+                # Validate json_structure is a dictionary
+                if not isinstance(json_structure, dict):
+                    logger.error(f"Invalid json_structure type: {type(json_structure)}, expected dict")
+                    return Response(
+                        {'error': 'Invalid presentation structure generated'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Extract slides list early for logging and validation
+                slides_list = json_structure.get('slides', [])
+                
+                # Validate slides is a list
+                if not isinstance(slides_list, list):
+                    logger.error(f"Invalid slides type: {type(slides_list)}, expected list")
+                    return Response(
+                        {'error': 'Invalid slides structure in presentation'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
                 # Log generation metadata
                 if json_structure.get('metadata', {}).get('generated_with_chunking'):
                     num_chunks = json_structure['metadata'].get('number_of_chunks', 0)
-                    logger.info(f"Chunking applied: {num_chunks} chunks, {json_structure['total_slides']} slides generated")
+                    logger.info(f"Chunking applied: {num_chunks} chunks, {len(slides_list)} slides in structure")
                 else:
-                    logger.info(f"Single request processing: {json_structure['total_slides']} slides generated")
+                    logger.info(f"Single request processing: {len(slides_list)} slides generated")
             
             except (ConnectionError, TimeoutError) as e:
                 logger.error(f"Connection error during generation: {str(e)}")
@@ -113,7 +136,7 @@ class PresentationViewSet(viewsets.ModelViewSet):
             
             # Use provided title or generated title
             if not presentation_title:
-                presentation_title = json_structure['presentation_title']
+                presentation_title = json_structure.get('presentation_title', 'Untitled Presentation')
             
             try:
                 # Create presentation object
@@ -123,34 +146,62 @@ class PresentationViewSet(viewsets.ModelViewSet):
                     raw_content=raw_content,
                     target_audience=target_audience,
                     tone=tone,
+                    subject=subject,
+                    template=template,  # Store selected template
+                    slide_ratio=slide_ratio,  # Store selected slide ratio
                     json_structure=json_structure,
                     created_by=request.user,
                 )
                 
                 # Create slide objects from JSON structure
                 slides_created = 0
-                for slide_data in json_structure['slides']:
+                
+                # Process each slide from the structure
+                
+                for slide_data in slides_list:
                     try:
                         # Handle both 'visuals' and 'slide_visuals' keys from LLM response
                         visuals = slide_data.get('visuals') or slide_data.get('slide_visuals', {})
+                        fonts = slide_data.get('fonts', {})  # Get font configuration from slide
+                        
+                        # Determine slide_type with intelligent fallback
+                        slide_type = slide_data.get('slide_type')
+                        if not slide_type:
+                            # Infer slide_type if missing
+                            slide_number = slide_data.get('slide_number', 1)
+                            if slide_number == 1:
+                                slide_type = 'title'  # First slide is usually title
+                            elif slide_data.get('title') and not slide_data.get('bullets'):
+                                slide_type = 'section'  # Section slides typically have no bullets
+                            else:
+                                slide_type = 'content'  # Default to content
                         
                         Slide.objects.create(
                             presentation=presentation,
-                            slide_number=slide_data['slide_number'],
-                            slide_type=slide_data['slide_type'],
-                            title=slide_data['title'],
+                            slide_number=slide_data.get('slide_number', slides_created + 1),
+                            slide_type=slide_type,
+                            title=slide_data.get('title', f'Slide {slides_created + 1}'),
                             subtitle=slide_data.get('subtitle', ''),
                             bullets=slide_data.get('bullets', []),
                             visuals=visuals,
+                            fonts=fonts,  # Store font configuration
                             speaker_notes=slide_data.get('speaker_notes', ''),
-                            order=slide_data['slide_number'],
+                            order=slide_data.get('slide_number', slides_created + 1),
                         )
                         slides_created += 1
                     except Exception as slide_error:
                         logger.warning(f"Failed to create slide {slide_data.get('slide_number')}: {str(slide_error)}")
                         continue
                 
-                logger.info(f"Presentation created: ID={presentation.id}, slides={slides_created}")
+                # Store fonts in presentation object
+                font_config = getattr(generator, 'font_config', {})
+                presentation.title_font = font_config.get('title', 'Calibri') if isinstance(font_config, dict) else 'Calibri'
+                presentation.heading_font = font_config.get('heading', 'Calibri') if isinstance(font_config, dict) else 'Calibri'
+                presentation.content_font = font_config.get('content', 'Arial') if isinstance(font_config, dict) else 'Arial'
+                presentation.subject = subject  # Store the selected subject
+                presentation.save()
+                
+                logger.info(f"Presentation created: ID={presentation.id}, slides={slides_created}, subject={subject}, fonts={presentation.title_font}, {presentation.heading_font}, {presentation.content_font}")
                 
                 # Serialize and return
                 serializer = PresentationSerializer(presentation)
@@ -195,7 +246,18 @@ class PresentationViewSet(viewsets.ModelViewSet):
         """Export presentation as PPTX file"""
         presentation = self.get_object()
         try:
-            pptx_file = generate_pptx(presentation)
+            # Get template from presentation or use default
+            template_name = presentation.template or 'rose_elegance'
+            
+            # Get slide ratio from query params, presentation settings, or use default
+            slide_ratio = request.query_params.get('slide_ratio', presentation.slide_ratio or '16:9')
+            
+            # Validate slide ratio
+            if slide_ratio not in ['16:9', '4:3', '1:1', '2:3']:
+                slide_ratio = '16:9'
+            
+            logger.info(f"Exporting presentation {presentation.id} with template={template_name}, slide_ratio={slide_ratio}")
+            pptx_file = generate_pptx(presentation, template_name=template_name, slide_ratio=slide_ratio)
             filename = f"{presentation.title.replace(' ', '_')}.pptx"
             return FileResponse(
                 pptx_file,
@@ -204,6 +266,7 @@ class PresentationViewSet(viewsets.ModelViewSet):
                 content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation'
             )
         except Exception as e:
+            logger.error(f"PPTX export failed for presentation {presentation.id}: {str(e)}", exc_info=True)
             return Response(
                 {'error': f'Failed to generate PPTX: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
