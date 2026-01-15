@@ -2,7 +2,7 @@ services:
   - type: web
     name: presentation-frontend
     runtime: node
-    buildCommand: "npm install --legacy-peer-deps && npm run build"
+    buildCommand: "npm install --save-dev react-scripts && npm install --legacy-peer-deps && npm run build"
     startCommand: "npm install -g serve && serve -s build -l 3000"
     envVars:
       - key: REACT_APP_API_URL
@@ -11,3 +11,5 @@ services:
         value: "presentation_api_token_production_2026"
       - key: NODE_ENV
         value: "production"
+      - key: CI
+        value: "false"
