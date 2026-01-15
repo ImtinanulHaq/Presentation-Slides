@@ -128,9 +128,10 @@ class PresentationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
             except Exception as e:
-                logger.error(f"Presentation generation error: {str(e)}", exc_info=True)
+                error_details = f"{type(e).__name__}: {str(e)}"
+                logger.error(f"Presentation generation error: {error_details}", exc_info=True)
                 return Response(
-                    {'error': f'Failed to generate presentation'},
+                    {'error': f'Failed to generate presentation', 'details': error_details},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             

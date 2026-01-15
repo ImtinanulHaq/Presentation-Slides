@@ -16,7 +16,7 @@ services:
       - key: ALLOWED_HOSTS
         value: "*.render.com"
       - key: GROQ_API_KEY
-        sync: false
+        value: "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"
 
 databases:
   - name: presentation_db

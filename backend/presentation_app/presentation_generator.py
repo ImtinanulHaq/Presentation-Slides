@@ -280,11 +280,19 @@ class GroqPresentationGenerator:
         
         # Get API key from environment or use default
         api_key = os.environ.get('GROQ_API_KEY', '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')
+        # Initialize Groq client with just the API key
         try:
             self.client = Groq(api_key=api_key)
-        except TypeError:
-            # Fallback for httpx compatibility issues
-            self.client = Groq(api_key=api_key, http_client=None)
+        except Exception as init_error:
+            print(f"[DEBUG] Groq init error: {init_error}, type: {type(init_error)}")
+            # Try to work around httpx issues
+            import httpx
+            try:
+                http_client = httpx.Client()
+                self.client = Groq(api_key=api_key, http_client=http_client)
+            except:
+                # Last resort - just try with api_key
+                self.client = Groq(api_key=api_key)
         
     def generate(self) -> dict:
         """Generate complete presentation JSON using Groq"""
