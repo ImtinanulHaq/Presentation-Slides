@@ -1,6 +1,8 @@
 """
 Groq-Based Presentation Generator
 Converts raw content to structured JSON using Groq LLM API
+Automatically chunks content >= 300 words for intelligent processing
+Stores chunk-wise JSON and compiles into unified PPTX-compatible format
 """
 
 import json
@@ -8,6 +10,30 @@ from groq import Groq
 import os
 import re
 from .content_chunker import ContentChunker, create_chunked_prompt
+from .chunk_json_compiler import ChunkJSONCompiler
+
+
+# Professional symbols and icons library
+PROFESSIONAL_SYMBOLS = {
+    'bullets': {
+        1: ['●'],
+        2: ['▸', '►'],
+        3: ['▪', '▸', '◆'],
+        4: ['■', '▸', '◆', '★']
+    },
+    'icons': {
+        'success': '✓',
+        'point': '▸',
+        'arrow': '→',
+        'checkmark': '✔',
+        'star': '★',
+        'bullet': '●',
+        'square': '■',
+        'diamond': '◆',
+        'triangle': '▲',
+        'circle': '●',
+    }
+}
 
 
 def repair_json_string(json_str: str) -> str:
@@ -20,6 +46,9 @@ def repair_json_string(json_str: str) -> str:
     
     # Fix trailing commas before closing brackets/braces
     json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+    
+    # Fix escaped newlines within strings
+    json_str = json_str.replace('\\"', '"')
     
     # Try to complete incomplete JSON structures
     # Count opening and closing braces
@@ -49,18 +78,24 @@ class GroqPresentationGenerator:
         self.tone = tone
         self.num_slides = num_slides  # User-specified slide count (optional)
         
-        # AUTO-ENABLE CHUNKING if content is very large
-        # Groq TPM limit: 6000 tokens, so keep single request under ~4500 tokens to be safe
-        # 1 word ≈ 1.3 tokens, so ~3500 words = 4550 tokens
-        # If content > 3500 words (4500+ tokens), auto-enable chunking
+        # AUTO-ENABLE CHUNKING: Check both content length criteria
+        # 1. Auto-chunk if content >= 300 words (intelligent processing threshold)
+        # 2. Auto-chunk if content > 3500 words (token limit safety)
         content_word_count = len(raw_content.split())
-        if content_word_count > 3500 and not enable_chunking:
-            print(f"[AUTO-CHUNKING] Content has {content_word_count} words (>3500 limit). Auto-enabling chunking.")
+        chunker = ContentChunker()
+        
+        # AUTO-ENABLE at 300+ words OR if exceeds token safety limit
+        if (chunker.should_auto_chunk(raw_content) and not num_slides) and not enable_chunking:
+            print(f"[AUTO-CHUNKING] Content has {content_word_count} words (>= {ContentChunker.AUTO_CHUNK_THRESHOLD} word threshold). Auto-enabling intelligent chunking.")
+            enable_chunking = True
+        elif content_word_count > 3500 and not enable_chunking:
+            print(f"[AUTO-CHUNKING] Content has {content_word_count} words (>3500 token limit). Auto-enabling chunking.")
             enable_chunking = True
         
         self.enable_chunking = enable_chunking  # Enable content chunking for large inputs
-        self.enable_chunking = enable_chunking  # Enable content chunking for large inputs
         self.enable_visuals = enable_visuals  # Enable visual suggestions for bullets
+        self.content_word_count = content_word_count  # Store for reference
+        
         # Get API key from environment or use default
         api_key = os.environ.get('GROQ_API_KEY', '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')
         try:
@@ -135,12 +170,16 @@ class GroqPresentationGenerator:
             
             response_text = message.choices[0].message.content
             
-            # Parse JSON from response
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
+            # Parse JSON from response - look for array or object
+            json_start = response_text.find('[')
+            if json_start == -1:
+                json_start = response_text.find('{')
+                json_end = response_text.rfind('}') + 1
+            else:
+                json_end = response_text.rfind(']') + 1
             
             if json_start == -1 or json_end <= json_start:
-                raise ValueError("No valid JSON object found in Groq response")
+                raise ValueError("No valid JSON found in Groq response")
             
             json_str = response_text[json_start:json_end]
             
@@ -148,6 +187,12 @@ class GroqPresentationGenerator:
             try:
                 json_str_repaired = repair_json_string(json_str)
                 presentation_json = json.loads(json_str_repaired)
+                
+                # ENFORCE 4-8 BULLET POINT REQUIREMENT
+                if 'slides' in presentation_json:
+                    for slide in presentation_json['slides']:
+                        self._extract_slide_bullets(slide)
+                
                 return presentation_json
             except json.JSONDecodeError as repair_error:
                 # If repair didn't work, try original JSON
@@ -185,7 +230,14 @@ class GroqPresentationGenerator:
             raise Exception(f"Groq API call failed: {str(e)}")
     
     def _generate_chunked(self) -> dict:
-        """Generate presentation from chunked content for large inputs"""
+        """Generate presentation from chunked content for large inputs
+        
+        Automatically:
+        1. Chunks content intelligently (preserves context)
+        2. Generates slides per chunk
+        3. Stores chunk-wise JSON
+        4. Compiles into unified, PPTX-compatible format
+        """
         
         chunker = ContentChunker()
         chunks = chunker.chunk_content(self.raw_content)
@@ -194,397 +246,452 @@ class GroqPresentationGenerator:
             # Content fits in single chunk, use normal flow
             return self._generate_single()
         
-        # Process each chunk and collect slides
-        all_slides = []
-        slide_number = 1
+        print(f"[CHUNKING] Processing {len(chunks)} chunks for comprehensive presentation generation")
+        
+        # Initialize compiler for unified output
+        compiler = ChunkJSONCompiler(
+            topic=self.topic,
+            target_audience=self.target_audience,
+            tone=self.tone
+        )
+        
+        # Collect all chunk slides
+        all_chunk_slides = []
         
         try:
-            # Create overview slide
-            all_slides.append({
-                "slide_number": slide_number,
-                "slide_type": "title",
-                "title": f"Comprehensive Overview: {self.topic}",
-                "subtitle": f"Content compiled from {len(chunks)} major sections",
-                "bullets": [],
-                "speaker_notes": f"This presentation covers {self.topic} across {len(chunks)} comprehensive sections.",
-                "visuals": {"icons": ["presentation"], "symbols": []}
-            })
-            slide_number += 1
-            
-            # Process each chunk
-            for chunk_idx, chunk in enumerate(chunks):
-                chunk_prompt = self._build_chunk_prompt(chunk, chunk_idx + 1, len(chunks))
+            # Process each chunk independently
+            for chunk_idx, chunk in enumerate(chunks, 1):
+                print(f"[CHUNK {chunk_idx}/{len(chunks)}] Processing chunk ({len(chunk.split())} words)...")
                 
-                message = self.client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": chunk_prompt
-                        }
-                    ],
-                    temperature=0.7,
-                    max_tokens=2000,
-                )
+                chunk_prompt = self._build_chunk_prompt(chunk, chunk_idx, len(chunks))
                 
-                response_text = message.choices[0].message.content
+                chunk_slides = []
+                retry_count = 0
+                max_retries = 2
                 
-                # Parse JSON from response
-                json_start = response_text.find('[')
-                json_end = response_text.rfind(']') + 1
-                
-                if json_start != -1 and json_end > json_start:
-                    json_str = response_text[json_start:json_end]
-                    chunk_slides = json.loads(json_str)
+                # Retry logic for failed chunks
+                while not chunk_slides and retry_count <= max_retries:
+                    try:
+                        # Generate slides for this chunk
+                        message = self.client.chat.completions.create(
+                            model="llama-3.1-8b-instant",
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": chunk_prompt
+                                }
+                            ],
+                            temperature=0.7,
+                            max_tokens=2000,
+                        )
+                        
+                        response_text = message.choices[0].message.content
+                        
+                        # Parse JSON from response
+                        json_start = response_text.find('[')
+                        json_end = response_text.rfind(']') + 1
+                        
+                        if json_start != -1 and json_end > json_start:
+                            json_str = response_text[json_start:json_end]
+                            
+                            try:
+                                chunk_slides = json.loads(json_str)
+                            except json.JSONDecodeError as e:
+                                # Try to repair JSON
+                                try:
+                                    json_str = repair_json_string(json_str)
+                                    chunk_slides = json.loads(json_str)
+                                except json.JSONDecodeError:
+                                    if retry_count < max_retries:
+                                        retry_count += 1
+                                        print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ JSON parse failed (attempt {retry_count}), retrying...")
+                                        continue
+                                    else:
+                                        print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ JSON repair failed after {max_retries} retries, using fallback")
+                                        chunk_slides = self._generate_fallback_slides(chunk, chunk_idx)
+                        else:
+                            if retry_count < max_retries:
+                                retry_count += 1
+                                print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ No JSON found (attempt {retry_count}), retrying...")
+                                continue
+                            else:
+                                print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ No valid JSON found after retries, using fallback")
+                                chunk_slides = self._generate_fallback_slides(chunk, chunk_idx)
+                        
+                        # Successfully parsed JSON, exit retry loop
+                        if chunk_slides:
+                            break
                     
-                    # Renumber slides
+                    except Exception as e:
+                        if retry_count < max_retries:
+                            retry_count += 1
+                            print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ API error (attempt {retry_count}): {str(e)[:50]}... retrying...")
+                            continue
+                        else:
+                            print(f"[CHUNK {chunk_idx}/{len(chunks)}] ⚠ API failed after retries, using fallback")
+                            chunk_slides = self._generate_fallback_slides(chunk, chunk_idx)
+                            break
+                
+                # ENFORCE 4-8 BULLET POINT REQUIREMENT FOR EACH SLIDE
+                if isinstance(chunk_slides, list):
                     for slide in chunk_slides:
-                        slide['slide_number'] = slide_number
-                        all_slides.append(slide)
-                        slide_number += 1
+                        if isinstance(slide, dict):
+                            self._extract_slide_bullets(slide)
+                            # Clean any chunk-related metadata from slides
+                            self._clean_slide_metadata(slide)
+                
+                # Ensure chunk_slides is a list
+                if not isinstance(chunk_slides, list):
+                    chunk_slides = chunk_slides.get('slides', []) if isinstance(chunk_slides, dict) else []
+                
+                # Store chunk-wise JSON
+                all_chunk_slides.append(chunk_slides)
+                print(f"[CHUNK {chunk_idx}/{len(chunks)}] OK - Generated {len(chunk_slides)} slides")
             
-            # Add conclusion slide
-            all_slides.append({
-                "slide_number": slide_number,
-                "slide_type": "conclusion",
-                "title": "Conclusion & Key Takeaways",
-                "subtitle": f"{self.topic} Summary",
-                "bullets": [
-                    "Covered comprehensive material across all sections",
-                    "Ready to discuss questions and next steps",
-                    "All key points integrated into structured presentation"
-                ],
-                "speaker_notes": "Thank you for reviewing this comprehensive presentation. We've covered all major aspects.",
-                "visuals": {"icons": ["checkmark"], "symbols": []}
-            })
+            # Compile all chunks into unified JSON using compiler
+            print("[COMPILING] Merging chunk data into unified presentation format...")
             
-            # Create final JSON structure
-            return {
-                "presentation_title": f"{self.topic} - Comprehensive Presentation",
-                "topic": self.topic,
-                "target_audience": self.target_audience,
-                "tone": self.tone,
-                "total_slides": slide_number - 1,
-                "slides": all_slides,
-                "metadata": {
-                    "generated_with_chunking": True,
-                    "number_of_chunks": len(chunks),
-                    "total_tokens_estimated": sum(
-                        int(len(chunk.split()) * 1.3) for chunk in chunks
-                    )
-                }
-            }
+            presentation_json = compiler.compile_chunk_slides(
+                chunk_slides_list=all_chunk_slides,
+                chunk_count=len(chunks)
+            )
+            
+            # Validate and clean the compiled JSON
+            presentation_json = compiler.validate_compiled_json(presentation_json)
+            
+            print(f"[SUCCESS] Generated {presentation_json['total_slides']} slides from {len(chunks)} chunks")
+            
+            return presentation_json
             
         except Exception as e:
             raise Exception(f"Error generating chunked presentation: {str(e)}")
     
-    def _build_chunk_prompt(self, chunk: str, chunk_num: int, total_chunks: int) -> str:
-        """Build prompt for processing a single chunk"""
+    def _calculate_optimal_slides(self, word_count: int) -> dict:
+        """
+        Calculate optimal slide count based on professional guidelines.
         
-        return f"""You are a presentation slide generator for chunked content. Create comprehensive slides for this section.
+        WORD-TO-SLIDE RATIO:
+        - 1000+ words: 3 slides per 100 words (30+ slides for 1000+)
+        - 500-999 words: 4-5 slides per 100 words (20-50 slides)
+        - 300-499 words: 4-5 slides per 100 words (12-25 slides)
+        - 100-299 words: 5-8 slides per 100 words (5-24 slides)
+        
+        Returns: {'min': int, 'max': int, 'recommended': int}
+        """
+        if word_count >= 1000:
+            # 1000+ words: 3 slides per 100 words
+            min_slides = max(20, int(word_count / 100 * 3 * 0.85))
+            max_slides = max(25, int(word_count / 100 * 3 * 1.15))
+            recommended = int(word_count / 100 * 3)
+        
+        elif word_count >= 500:
+            # 500-999 words: 4-5 slides per 100 words
+            min_slides = max(15, int(word_count / 100 * 4))
+            max_slides = max(20, int(word_count / 100 * 5))
+            recommended = int(word_count / 100 * 4.5)
+        
+        elif word_count >= 300:
+            # 300-499 words: 4-5 slides per 100 words
+            min_slides = max(12, int(word_count / 100 * 4))
+            max_slides = max(15, int(word_count / 100 * 5))
+            recommended = int(word_count / 100 * 4.5)
+        
+        elif word_count >= 100:
+            # 100-299 words: 5-8 slides per 100 words
+            min_slides = max(5, int(word_count / 100 * 5))
+            max_slides = max(8, int(word_count / 100 * 8))
+            recommended = int(word_count / 100 * 6.5)
+        
+        else:
+            # < 100 words: minimum viable presentation
+            min_slides = 3
+            max_slides = 8
+            recommended = 5
+        
+        return {
+            'min': max(3, min_slides),
+            'max': max(min_slides + 2, max_slides),
+            'recommended': max(3, recommended),
+            'word_count': word_count
+        }
+    
+    def _extract_slide_bullets(self, slide: dict) -> dict:
+        """
+        Validate and ensure slide has 4-8 bullet points (except title/conclusion slides).
+        
+        Professional requirements:
+        - Each content slide must have 4-8 bullet points (not less, not more)
+        - Title slides can have 0 bullets (by design)
+        - Conclusion slides should have 4-8 bullets or get padded
+        - Each point should be detailed and informative
+        - No points can be empty or trivial
+        
+        Returns: Validated slide with proper bullet count
+        """
+        slide_type = slide.get('type', slide.get('slide_type', 'standard')).lower()
+        bullets = slide.get('bullets', [])
+        
+        # Title slides are allowed to have 0 bullets
+        if slide_type in ['title', 'intro']:
+            return slide
+        
+        # Ensure bullets is a list
+        if not isinstance(bullets, list):
+            bullets = []
+        
+        # Filter out empty bullets
+        bullets = [b for b in bullets if b and str(b).strip()]
+        
+        current_count = len(bullets)
+        
+        if current_count < 4:
+            # Too few bullets - add placeholder guidance
+            while len(bullets) < 4:
+                bullets.append("Additional point: [Content detail]")
+        
+        elif current_count > 8:
+            # Too many bullets - consolidate or truncate to 8 most important
+            bullets = bullets[:8]
+        
+        slide['bullets'] = bullets
+        slide['bullet_count'] = len(bullets)
+        
+        return slide
+        
+    
+    def _clean_slide_metadata(self, slide: dict) -> None:
+        """
+        Remove any chunk-related metadata from slide.
+        Ensures user only sees content-related information.
+        
+        Args:
+            slide: Slide dictionary to clean
+        """
+        # Remove chunk-related keys that might appear in slides
+        chunk_keys = ['chunk', 'chunk_number', 'chunk_idx', 'chunk_id', 'from_chunk']
+        for key in chunk_keys:
+            slide.pop(key, None)
+        
+        # Ensure subtitle and speaker_notes don't contain chunk info
+        if 'subtitle' in slide:
+            subtitle = str(slide.get('subtitle', '')).strip()
+            if 'chunk' in subtitle.lower():
+                slide['subtitle'] = ''
+        
+        if 'speaker_notes' in slide:
+            notes = str(slide.get('speaker_notes', '')).strip()
+            if 'chunk' in notes.lower():
+                slide['speaker_notes'] = ''
+    
+    def _generate_fallback_slides(self, chunk_text: str, chunk_idx: int) -> list:
+        """
+        Generate fallback slides when JSON parsing fails
+        Extracts key sentences from chunk and creates slides
+        
+        Args:
+            chunk_text: Raw chunk text
+            chunk_idx: Chunk index number
+            
+        Returns:
+            List of slide dictionaries with 4-8 bullets
+        """
+        try:
+            sentences = [s.strip() for s in chunk_text.split('.') if len(s.strip()) > 20]
+            
+            if not sentences:
+                # If no sentences, use paragraphs
+                sentences = [p.strip() for p in chunk_text.split('\n') if len(p.strip()) > 20]
+            
+            if not sentences:
+                # Last resort: return empty list, compiler will handle it
+                print(f"[CHUNK {chunk_idx}] ⚠ Fallback: No extractable content")
+                return []
+            
+            # Group sentences into slides (4-6 bullets per slide)
+            slides = []
+            bullets_per_slide = 5  # Safe middle ground: 4-8
+            
+            for i in range(0, len(sentences), bullets_per_slide):
+                slide_bullets = sentences[i:i+bullets_per_slide]
+                
+                # Ensure we have 4-8 bullets
+                if len(slide_bullets) < 4 and i + bullets_per_slide < len(sentences):
+                    slide_bullets = sentences[i:i+6]
+                
+                if len(slide_bullets) >= 4:
+                    slide = {
+                        "slide_type": "content",
+                        "title": f"Key Points - Section {i//bullets_per_slide + 1}",
+                        "subtitle": "",
+                        "bullets": slide_bullets,
+                        "speaker_notes": "",
+                        "visuals": {"icons": [], "symbols": ["▸"]}
+                    }
+                    slides.append(slide)
+            
+            if slides:
+                print(f"[CHUNK {chunk_idx}] ✓ Fallback: Generated {len(slides)} slides from text")
+            
+            return slides
+            
+        except Exception as e:
+            print(f"[CHUNK {chunk_idx}] ⚠ Fallback failed: {str(e)}")
+            return []
+    
+    def _build_chunk_prompt(self, chunk: str, chunk_num: int, total_chunks: int) -> str:
+        """Build prompt for processing a single chunk
+        
+        Dynamically determines slide count and bullet points based on content length.
+        Professional implementation with detailed guidelines.
+        """
+        
+        # Calculate optimal slides for this chunk
+        chunk_word_count = len(chunk.split())
+        slide_calc = self._calculate_optimal_slides(chunk_word_count)
+        
+        # Determine recommended slide count per chunk
+        if total_chunks <= 2:
+            slides_per_chunk = f"{max(3, slide_calc['min'])}-{slide_calc['max']}"
+            slides_recommended = f"~{slide_calc['recommended']}"
+        elif total_chunks <= 3:
+            slides_per_chunk = f"{max(2, slide_calc['min']//2)}-{slide_calc['max']//2}"
+            slides_recommended = f"~{slide_calc['recommended']//2}"
+        elif total_chunks <= 5:
+            slides_per_chunk = f"{max(2, slide_calc['min']//3)}-{slide_calc['max']//3}"
+            slides_recommended = f"~{slide_calc['recommended']//3}"
+        else:
+            slides_per_chunk = "2-3"
+            slides_recommended = "~3"
+        
+        return f"""You are a professional presentation slide generator.
+Create comprehensive, detailed, corporate-quality slides from this content.
 
-CRITICAL - CHUNK CONTEXT:
-This is chunk {chunk_num} of {total_chunks} - part of a larger presentation.
-Generate slides for THIS CHUNK ONLY. Do not reference other chunks.
-
-CHUNK CONTENT:
+CONTENT TO PROCESS:
 {chunk}
 
-REQUIREMENTS:
-1. Output ONLY valid JSON array of slides - no markdown, no explanations
-2. Create 2-4 comprehensive slides from this chunk's content
-3. Maximize content coverage - include all information from the chunk
-4. Use bullet points (max 12 words each) - directly from chunk content
-5. Speaker notes: Expand on the chunk's content only (no external information)
-6. Maintain "{self.tone}" tone throughout
-7. Professional structure and organization
+================================================================================
+SLIDE GENERATION REQUIREMENTS
+================================================================================
+🎯 BULLET POINTS PER SLIDE:
+• Minimum: 4 bullet points per slide
+• Maximum: 8 bullet points per slide
+• EVERY slide MUST have 4-8 points
+• Target: {slides_per_chunk} slides ({slides_recommended} recommended)
+• No exceptions - professional standard is 4-8 points
 
-VISUAL SUGGESTIONS:
-- Analyze each bullet's content
-- Suggest RELEVANT icons based on bullet's meaning
-- Suggest emojis matching the content
-- Suggest colors aligned with tone and content
-- All visuals MUST relate directly to chunk content
+📝 BULLET POINT QUALITY:
+1. Each point: 8-15 words (concise but detailed)
+2. Start with strong verbs or key concepts
+3. Include specific numbers, metrics, or evidence when present in content
+4. Reference actual information from the chunk - NO generic filler
+5. Maintain consistent structure within a slide
+6. Every point must be distinct and non-repetitive
+7. Cover all important aspects of the topic
 
-DATA-ONLY CONSTRAINT:
-Use ONLY information from the chunk above. Do NOT add external knowledge.
+💼 CONTENT COVERAGE:
+• Extract and represent ALL significant information from this chunk
+• If chunk has 100+ words, spread detail across multiple comprehensive slides
+• If chunk has statistics/numbers, include them with context
+• If chunk discusses concepts, ensure all are represented
+• No important information should be omitted
 
-SLIDE FORMAT:
-[
-  {{
-    "slide_type": "content",
-    "title": "Section title from chunk",
-    "subtitle": "Optional subtitle",
-    "bullets": [
-      {{
-        "text": "Bullet point from chunk (max 12 words)",
-        "icon": "relevant-icon-name",
-        "emoji": "📊",
-        "color": "color-name"
-      }},
-      {{
-        "text": "Another point from chunk",
-        "icon": "relevant-icon-name",
-        "emoji": "✓",
-        "color": "color-name"
-      }}
-    ],
-    "slide_visuals": {{
-      "slide_icons": ["icon1"],
-      "slide_symbols": ["symbol"],
-      "slide_image_ideas": ["Specific image description from chunk"]
-    }},
-    "speaker_notes": "Detailed explanation from chunk content only"
-  }}
-]
+================================================================================
+PROFESSIONAL SYMBOLS & FORMATTING
+================================================================================
+Use professional symbols instead of basic bullets:
+• 4 bullets: ▪ ▸ ◆ ■  (balanced variety)
+• 5 bullets: ▪ ▸ ◆ ■ ★  (add emphasis marker)
+• 6 bullets: ▪ ▸ ◆ ■ ★ ●  (comprehensive)
+• 7 bullets: ▪ ▸ ◆ ■ ★ ● ✓  (checkmark for last)
+• 8 bullets: ▪ ▸ ◆ ■ ★ ● ✓ →  (full palette)
 
-COMPREHENSIVE COVERAGE:
-Ensure ALL information from this chunk is covered across the generated slides.
-Use all available space in 2-4 slides to properly present the chunk's content.
+================================================================================
+EMOJI USAGE (SELECTIVE & PROFESSIONAL)
+================================================================================
+Use emojis ONLY when contextually appropriate:
+✅ When to use:
+  • Financial data/metrics: 📊 📈 💰 (when discussing numbers)
+  • Technical aspects: 🔧 💻 🔐 (for tech content only)
+  • Achievements: ✅ (for milestones/successes only)
+  • Strategy/goals: 🎯 (for objectives only)
+  • Risk/warning: ⚠️ (for critical warnings only)
 
-NOW GENERATE JSON ARRAY OF SLIDES (JSON ONLY):"""
+❌ Never use:
+  • Casual/cute emojis: 😊 😄 👍 🌟
+  • Generic decorative emojis
+  • Multiple emojis per slide (max 1-2)
+  • For regular descriptive text (default to professional symbols)
+
+Default to professional symbols (▸ ▪ ◆ etc.) instead of emojis.
+
+================================================================================
+SLIDE STRUCTURE GUIDELINES
+================================================================================
+✓ Structure each slide around ONE main topic or concept
+✓ Organize content logically with progression of ideas
+✓ Each slide should build on previous concepts
+✓ Use consistent formatting throughout
+✓ Ensure visual hierarchy with symbols and structure
+
+================================================================================
+OUTPUT REQUIREMENTS
+================================================================================
+1. Output ONLY valid JSON array of slides - no markdown, explanations, or code
+2. Generate {slides_per_chunk} slides total
+3. Each slide MUST have exactly 4-8 bullet points (mandatory)
+4. All bullets must be from the chunk content (no external info)
+5. Maintain "{self.tone}" tone throughout all content
+6. Professional, corporate-quality presentation
+
+================================================================================
+RESPONSE FORMAT (VALID JSON ARRAY ONLY)
+================================================================================
+Return a JSON array with 4-8 bullet points per slide. Example structure:
+- Each slide has a "title" field
+- Each slide has a "type" field set to "standard"
+- Each slide has a "bullets" field containing 4-8 text items
+- Do NOT include any text outside the JSON array
+
+IMPORTANT: Return ONLY a valid JSON array. Do NOT include any other text.
+
+CRITICAL: Every slide must have 4-8 bullets. No slide should have fewer than 4
+or more than 8 points. Content preservation is essential.
+"""
     
     def _build_prompt(self) -> str:
-        """Build the prompt for Groq API with professional guidelines"""
+        """Build comprehensive prompt for slide generation using Groq API"""
         
-        try:
-            # Build slide count instruction - STRICT
-            if self.num_slides:
-                if not isinstance(self.num_slides, int):
-                    self.num_slides = int(self.num_slides)
-                num_slides = self.num_slides
-                num_content_slides = max(1, self.num_slides - 2)  # Ensure at least 1 content slide
-                slide_instruction = f"""CRITICAL REQUIREMENT - SLIDE COUNT:
-Generate EXACTLY {num_slides} slides (not more, not less).
-The {num_slides} slides MUST include:
-  - 1 Title slide
-  - {num_content_slides} Content slides (comprehensive coverage of all content)
-  - 1 Conclusion/Summary slide
-
-You MUST use all {num_slides} slides. Cover ALL content comprehensively across these slides."""
-            else:
-                slide_instruction = """INTELLIGENT SLIDE COUNT:
-Determine the appropriate number of slides based on content volume and complexity:
-- For brief content (100-200 words): 3-4 slides
-- For moderate content (200-500 words): 5-7 slides  
-- For extensive content (500-1000 words): 8-12 slides
-- For comprehensive content (1000+ words): 13-20 slides
-
-Always include: 1 Title slide + Content slides + 1 Conclusion slide.
-Ensure COMPREHENSIVE coverage - no content should be omitted.
-Structure logically with clear sections."""
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Error building slide instruction: {str(e)}")
+        # Calculate optimal slide count
+        slide_calc = self._calculate_optimal_slides(self.content_word_count)
+        num_slides = slide_calc['recommended']
         
-        # Build visual instructions based on enable_visuals flag
-        if self.enable_visuals:
-            visual_requirements = """7. VISUAL SUGGESTIONS: Analyze content carefully and suggest appropriate visuals
-8. Per-bullet visuals: Each bullet gets icon, emoji, color recommendation
-9. Slide-level visuals: Icons, symbols, and image ideas for the entire slide
+        return f"""You are an expert professional presentation designer. Create comprehensive, high-quality slides.
 
-VISUAL GUIDELINES:
-- Analyze the content of each bullet point
-- Suggest RELEVANT icons based on bullet's meaning (not generic)
-- Suggest emojis that represent the concept
-- Suggest colors that match the tone and content
-- Suggest specific image descriptions (not generic "business image")
-- All visual suggestions MUST relate to the actual bullet content"""
-            
-            visual_json = """  "bullets": [
-        {{
-          "text": "Bullet point from content (max 12 words)",
-          "icon": "relevant-icon-name",
-          "emoji": "📊",
-          "color": "color-name"
-        }},
-        {{
-          "text": "Second bullet from content",
-          "icon": "relevant-icon-name",
-          "emoji": "✓",
-          "color": "color-name"
-        }},
-        {{
-          "text": "Third bullet with evidence from content",
-          "icon": "relevant-icon-name", 
-          "emoji": "⭐",
-          "color": "color-name"
-        }}
-      ],
-      "slide_visuals": {{
-        "slide_icons": ["icon1", "icon2"],
-        "slide_symbols": ["symbol"],
-        "slide_image_ideas": ["Specific image description from content topic"]
-      }},"""
-            
-            visual_examples = """VISUAL EXAMPLE:
-If bullet says "Increased sales by 45%":
-  - icon: "trending-up" or "chart-line"
-  - emoji: "📈"
-  - color: "green" (growth color)
-
-If bullet says "Reduce manual work":
-  - icon: "automation" or "tools"
-  - emoji: "🔧"
-  - color: "blue" (efficiency color)
-
-IMPORTANT: Every visual MUST directly relate to the bullet's actual content.
-"""
-        else:
-            visual_requirements = "7. No visual suggestions needed - focus on text content only"
-            visual_json = """  "bullets": [
-        "Bullet point from content (max 12 words)",
-        "Second bullet from content",
-        "Third bullet with evidence from content"
-      ],
-      "visuals": {{
-        "icons": [],
-        "symbols": [],
-        "image_ideas": []
-      }},"""
-            visual_examples = ""
-        
-        # Build the complete prompt with proper variable substitution
-        # Handle slide count in the prompt sections
-        if self.num_slides:
-            slide_range = f"2 to {self.num_slides - 1}"
-            final_slide_num = self.num_slides
-            total_slides_val = self.num_slides
-        else:
-            slide_range = "2 to (auto_determined_total - 1)"
-            final_slide_num = "auto_determined_total"
-            total_slides_val = "auto_determined_appropriate_number"
-        
-        return f"""You are a professional presentation structure organizer. Your task is to create comprehensive, well-structured presentations from user content.
-
-═══════════════════════════════════════════════════════════════════════════════
-CRITICAL CONSTRAINTS - MUST FOLLOW EXACTLY
-═══════════════════════════════════════════════════════════════════════════════
-
-1. DATA SOURCE ONLY:
-   ⚠️ USE ONLY THE PROVIDED CONTENT - DO NOT ADD, INVENT, OR SUPPLEMENT WITH EXTERNAL DATA
-   ⚠️ EVERY FACT, POINT, AND STATEMENT MUST COME DIRECTLY FROM THE INPUT CONTENT
-   ⚠️ IF THE CONTENT DOESN'T HAVE INFORMATION, DON'T INVENT IT
-   ⚠️ DO NOT ADD EXAMPLES, STATISTICS, OR DETAILS NOT PROVIDED BY USER
-
-2. COMPREHENSIVE COVERAGE:
-   ⚠️ ALL content from the input MUST be covered in the slides
-   ⚠️ No important information should be omitted
-   ⚠️ Organize content logically across slides
-   ⚠️ Each slide should have 2-4 well-structured bullets (not too many, not too few)
-
-3. SLIDE COUNT RULE:
-{slide_instruction}
-
-═══════════════════════════════════════════════════════════════════════════════
-PRESENTATION STRUCTURE REQUIREMENTS
-═══════════════════════════════════════════════════════════════════════════════
-
-SLIDE 1 (Title Slide):
-  - slide_type: "title"
-  - title: Main topic from content
-  - subtitle: Brief description from content
-  - bullets: [] (empty array)
-  - Include compelling opening context
-
-CONTENT SLIDES ({slide_range}):
-  - slide_type: "content"
-  - Organize content into logical sections
-  - Each slide should focus on ONE main topic
-  - Use 2-4 bullet points per slide maximum
-  - Each bullet: max 12 words, derived directly from content
-  - Include speaker notes expanding on bullets (from content only)
-
-FINAL SLIDE:
-  - slide_type: "conclusion"
-  - title: "Summary" or "Conclusion"
-  - Summarize key points from all content
-  - Include 2-4 main takeaways from content
-  - speaker_notes: Summary of entire presentation
-
-═══════════════════════════════════════════════════════════════════════════════
-CONTENT TO STRUCTURE
-═══════════════════════════════════════════════════════════════════════════════
-
+PRESENTATION GUIDELINES:
 Topic: {self.topic}
-Target Audience: {self.target_audience}
+Audience: {self.target_audience}
 Tone: {self.tone}
+Word Count: {self.content_word_count} words
+Recommended Slides: {num_slides}
 
-RAW CONTENT:
+PROFESSIONAL WORD-TO-SLIDE RATIOS:
+• 1000+ words: 3 slides per 100 words
+• 500-999 words: 4-5 slides per 100 words
+• 300-499 words: 4-5 slides per 100 words
+• 100-299 words: 5-8 slides per 100 words
+
+MANDATORY REQUIREMENTS:
+✓ EVERY slide MUST have 4-8 bullet points (NO exceptions)
+✓ Each point: 8-15 words max
+✓ Include specific numbers, metrics, evidence from content
+✓ Content from provided text ONLY
+✓ Professional symbols only: ▪ ▸ ◆ ■ ★ ● ✓ →
+✓ Emojis ONLY when contextually appropriate (max 1-2 per slide)
+✓ ALL information from content must be covered
+✓ No typos, no errors, professional quality
+
+CONTENT:
 {self.raw_content}
 
-═══════════════════════════════════════════════════════════════════════════════
-REQUIREMENTS
-═══════════════════════════════════════════════════════════════════════════════
-
-1. Output ONLY valid JSON - no markdown, no explanations, no commentary
-2. {slide_instruction}
-3. Use bullet points (max 12 words each) - from provided content ONLY
-4. Maintain "{self.tone}" tone throughout
-5. Speaker notes: Expand on content, don't add external information
-6. Ensure ALL content is covered comprehensively
-7. Professional organization and structure
-{visual_requirements}
-
-═══════════════════════════════════════════════════════════════════════════════
-JSON OUTPUT STRUCTURE
-═══════════════════════════════════════════════════════════════════════════════
-
-{{
-  "presentation_title": "Title reflecting main topic from content",
-  "overall_tone": "{self.tone}",
-  "target_audience": "{self.target_audience}",
-  "total_slides": {total_slides_val},
-  "presentation_summary": "2-3 sentence overview from content",
-  "slides": [
-    {{
-      "slide_number": 1,
-      "slide_type": "title",
-      "title": "Main title from content",
-      "subtitle": "Subtitle from content",
-      "bullets": [],
-      "visuals": {{
-        "slide_icons": ["icon"],
-        "slide_symbols": ["symbol"],
-        "slide_image_ideas": ["image description"]
-      }},
-      "speaker_notes": "Opening statement from content"
-    }},
-    {{
-      "slide_number": 2,
-      "slide_type": "content",
-      "title": "Content section title",
-      "subtitle": "Optional",
-{visual_json}
-      "speaker_notes": "Detailed explanation from content"
-    }},
-    {{
-      "slide_number": {final_slide_num},
-      "slide_type": "conclusion",
-      "title": "Conclusion",
-      "subtitle": "Key Takeaways",
-      "bullets": [
-        "Main point 1 from content",
-        "Main point 2 from content",
-        "Main point 3 from content"
-      ],
-      "visuals": {{"slide_icons": [], "slide_symbols": [], "slide_image_ideas": []}},
-      "speaker_notes": "Summary of all content covered"
-    }}
-  ]
-}}
-
-{visual_examples}
-
-═══════════════════════════════════════════════════════════════════════════════
-FINAL CHECKLIST BEFORE OUTPUT
-═══════════════════════════════════════════════════════════════════════════════
-
-✓ Is the total_slides set to {total_slides_val}?
-✓ Are ALL content points covered across the slides?
-✓ Is EVERY bullet point from the provided content only?
-✓ Are there no invented examples or external information?
-✓ Is the JSON valid and parseable?
-✓ Is the presentation professionally structured?
-✓ Are speaker notes comprehensive and from content only?
-
-NOW GENERATE THE JSON (JSON ONLY, NO EXPLANATION):"""
+OUTPUT: Valid JSON array with {num_slides} slides, each with 4-8 bullets from content.
+"""
