@@ -2,13 +2,12 @@ services:
   - type: web
     name: presentation-frontend
     runtime: node
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm install -g serve && serve -s build -l 3000"
-    env: static
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "npm install -g serve && serve -s frontend/build -l 3000"
     envVars:
       - key: REACT_APP_API_URL
         value: "https://presentation-slides.onrender.com/api"
       - key: REACT_APP_API_TOKEN
-        sync: false
+        value: "presentation_api_token_production_2026"
       - key: NODE_ENV
         value: "production"
