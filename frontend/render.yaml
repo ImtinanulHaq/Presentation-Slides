@@ -2,7 +2,7 @@ services:
   - type: web
     name: presentation-frontend
     runtime: node
-    buildCommand: "npm install && npm run build"
+    buildCommand: "npm install && node create-favicon.js && npm run build"
     startCommand: "node server.js"
     envVars:
       - key: REACT_APP_API_URL
