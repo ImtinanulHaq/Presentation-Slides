@@ -6,22 +6,20 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from django.http import JsonResponse
-
-def health_check(request):
-    """Health check endpoint for monitoring"""
-    return JsonResponse({
-        'status': 'ok',
-        'message': 'Presentation Slides API is running',
-        'version': '1.0'
-    })
+from presentation_app.health_checks import health_check_detailed, quick_health
 
 urlpatterns = [
-    path('', health_check, name='health-check'),
-    path('health/', health_check, name='health'),
+    # Health check endpoints
+    path('', quick_health, name='health-check'),
+    path('health/', health_check_detailed, name='health-detailed'),
+    path('health/status/', quick_health, name='health-status'),
+    
+    # Admin and API docs
     path('admin/', admin.site.urls),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    
+    # API routes
     path('api/', include('presentation_app.urls')),
 ]
 
