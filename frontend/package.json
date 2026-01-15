@@ -11,8 +11,7 @@
     "@ant-design/icons": "^5.2.6",
     "zustand": "^4.4.1",
     "react-quill": "^2.0.0",
-    "date-fns": "^2.30.0",
-    "react-scripts": "5.0.1"
+    "date-fns": "^2.30.0"
   },
   "devDependencies": {
     "react-scripts": "5.0.1",

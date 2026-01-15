@@ -2,7 +2,7 @@ services:
   - type: web
     name: presentation-frontend
     runtime: node
-    buildCommand: "npm install --save-dev react-scripts && npm install --legacy-peer-deps && npm run build"
+    buildCommand: "npm install && ./node_modules/.bin/react-scripts build"
     startCommand: "npm install -g serve && serve -s build -l 3000"
     envVars:
       - key: REACT_APP_API_URL
@@ -12,4 +12,6 @@ services:
       - key: NODE_ENV
         value: "production"
       - key: CI
+        value: "false"
+      - key: NPM_CONFIG_PRODUCTION
         value: "false"
