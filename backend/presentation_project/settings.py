@@ -16,7 +16,19 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,*.render.com,presentation-slides.onrender.com').split(',')
+# ALLOWED_HOSTS - includes localhost, Render domains, and any custom domain
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '*.render.com',
+    'presentation-slides.onrender.com',
+    'presentation-frontend.onrender.com',
+]
+
+# Add environment variable ALLOWED_HOSTS if provided
+env_hosts = config('ALLOWED_HOSTS', default='')
+if env_hosts:
+    ALLOWED_HOSTS.extend([host.strip() for host in env_hosts.split(',')])
 
 
 # Application definition
@@ -47,6 +59,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Trust proxy headers for Render
+SECURE_PROXY_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ROOT_URLCONF = 'presentation_project.urls'
 
