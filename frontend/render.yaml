@@ -3,7 +3,7 @@ services:
     name: presentation-frontend
     runtime: node
     buildCommand: "npm install && npm run build"
-    startCommand: "npx serve -s build -l 3000 --no-clipboard --single"
+    startCommand: "node server.js"
     envVars:
       - key: REACT_APP_API_URL
         value: "https://presentation-slides.onrender.com/api"
