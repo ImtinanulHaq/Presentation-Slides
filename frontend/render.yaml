@@ -4,8 +4,11 @@ services:
     runtime: node
     buildCommand: "npm install && npm run build"
     startCommand: "npm install -g serve && serve -s build -l 3000"
+    env: static
     envVars:
       - key: REACT_APP_API_URL
-        value: "https://presentation-backend.onrender.com/api"
+        value: "https://presentation-slides.onrender.com/api"
       - key: REACT_APP_API_TOKEN
         sync: false
+      - key: NODE_ENV
+        value: "production"
