@@ -1,0 +1,5 @@
+# Version constraints to prevent wheel build errors
+# Ensures only pre-built wheels are used on Render
+django<5.0
+setuptools<70.0
+pip>=23.1
