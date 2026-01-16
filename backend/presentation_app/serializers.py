@@ -29,11 +29,11 @@ class PresentationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'topic', 'raw_content', 'target_audience',
             'tone', 'subject', 'title_font', 'heading_font', 'content_font',
-            'description', 'json_structure', 'slides',
+            'bullet_style', 'template', 'slide_ratio', 'description', 'json_structure', 'slides',
             'total_slides', 'created_by', 'is_published',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'json_structure', 'slides', 'title_font', 'heading_font', 'content_font']
+        read_only_fields = ['created_at', 'updated_at', 'json_structure', 'slides', 'title_font', 'heading_font', 'content_font', 'template', 'slide_ratio', 'bullet_style']
 
     def get_total_slides(self, obj):
         return obj.slides.count()
@@ -63,6 +63,11 @@ class PresentationGenerateSerializer(serializers.Serializer):
     enable_visuals = serializers.BooleanField(required=False, default=True)
     template = serializers.CharField(max_length=50, required=False, default='warm_blue')
     slide_ratio = serializers.CharField(max_length=10, required=False, default='16:9')
+    bullet_style = serializers.ChoiceField(
+        choices=['numbered', 'bullet_elegant', 'bullet_modern', 'bullet_professional'],
+        required=False,
+        default='numbered'
+    )
     
     def validate_num_slides(self, value):
         """Handle num_slides validation and conversion"""

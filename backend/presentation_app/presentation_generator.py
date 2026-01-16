@@ -249,12 +249,13 @@ class GroqPresentationGenerator:
         },
     }
     
-    def __init__(self, topic: str, raw_content: str, target_audience: str, tone: str, subject: str = 'general', num_slides: int = None, enable_chunking: bool = False, enable_visuals: bool = True):
+    def __init__(self, topic: str, raw_content: str, target_audience: str, tone: str, subject: str = 'general', num_slides: int = None, enable_chunking: bool = False, enable_visuals: bool = True, bullet_style: str = 'numbered'):
         self.topic = topic
         self.raw_content = raw_content
         self.target_audience = target_audience
         self.tone = tone
         self.subject = subject if subject in self.SUBJECT_FONT_CONFIGS else 'general'  # Validate subject
+        self.bullet_style = bullet_style  # Store bullet style for LLM prompt
         self.num_slides = num_slides  # User-specified slide count (optional)
         
         # Get font configuration based on subject
@@ -280,19 +281,33 @@ class GroqPresentationGenerator:
         
         # Get API key from environment or use default
         api_key = os.environ.get('GROQ_API_KEY', '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')
-        # Initialize Groq client with just the API key
+        
+        # Initialize Groq client with only supported parameters
+        # Groq v0.10.0 accepts: api_key, base_url, timeout, max_retries, default_headers, default_query, http_client
         try:
-            self.client = Groq(api_key=api_key)
-        except Exception as init_error:
-            print(f"[DEBUG] Groq init error: {init_error}, type: {type(init_error)}")
-            # Try to work around httpx issues
-            import httpx
-            try:
-                http_client = httpx.Client()
-                self.client = Groq(api_key=api_key, http_client=http_client)
-            except:
-                # Last resort - just try with api_key
-                self.client = Groq(api_key=api_key)
+            # Create client with minimal parameters to avoid compatibility issues
+            self.client = Groq(
+                api_key=api_key
+            )
+        except TypeError as type_error:
+            # Handle parameter compatibility issues professionally
+            import logging
+            logger = logging.getLogger(__name__)
+            error_message = str(type_error)
+            
+            if 'unexpected keyword argument' in error_message:
+                logger.error(f"[GROQ CLIENT] Initialization error: {error_message}")
+                logger.error("[GROQ CLIENT] Attempting clean initialization with api_key only...")
+                # Fallback: Create client with absolute minimum parameters
+                try:
+                    self.client = Groq(api_key=api_key)
+                except Exception as fallback_error:
+                    logger.critical(f"[GROQ CLIENT] Failed to initialize: {fallback_error}")
+                    raise RuntimeError(f"Cannot initialize Groq client: {fallback_error}")
+            else:
+                # Re-raise if it's a different type of error
+                raise
+
         
     def generate(self) -> dict:
         """Generate complete presentation JSON using Groq"""
@@ -615,6 +630,45 @@ class GroqPresentationGenerator:
             
         except Exception as e:
             raise Exception(f"Error generating chunked presentation: {str(e)}")
+    
+    def _get_bullet_style_instruction(self) -> str:
+        """Get instruction for LLM based on bullet_style"""
+        style = str(self.bullet_style).strip().lower() if self.bullet_style else 'numbered'
+        
+        instructions = {
+            'numbered': 'Start each bullet with numbers: "1. ", "2. ", "3. ", "4. "',
+            'bullet_elegant': 'Start each bullet with elegant symbol: "● ", "● ", "● ", "● "',
+            'bullet_modern': 'Start each bullet with modern symbol: "▸ ", "▸ ", "▸ ", "▸ "',
+            'bullet_professional': 'Start each bullet with professional symbol: "■ ", "■ ", "■ ", "■ "'
+        }
+        
+        return instructions.get(style, instructions['numbered'])
+    
+    def _get_bullet_example(self) -> str:
+        """Get example bullets based on bullet_style"""
+        style = str(self.bullet_style).strip().lower() if self.bullet_style else 'numbered'
+        
+        examples = {
+            'numbered': '"1. First point here", "2. Second point here", "3. Third point here"',
+            'bullet_elegant': '"● First point here", "● Second point here", "● Third point here"',
+            'bullet_modern': '"▸ First point here", "▸ Second point here", "▸ Third point here"',
+            'bullet_professional': '"■ First point here", "■ Second point here", "■ Third point here"'
+        }
+        
+        return examples.get(style, examples['numbered'])
+    
+    def _get_bullet_format_description(self) -> str:
+        """Get description of bullet format for instructions"""
+        style = str(self.bullet_style).strip().lower() if self.bullet_style else 'numbered'
+        
+        descriptions = {
+            'numbered': 'numbers (1., 2., 3., 4.)',
+            'bullet_elegant': 'elegant bullets (●)',
+            'bullet_modern': 'modern bullets (▸)',
+            'bullet_professional': 'professional bullets (■)'
+        }
+        
+        return descriptions.get(style, descriptions['numbered'])
     
     def _get_subject_guidelines(self) -> str:
         """Return subject-specific guidelines for slide generation"""
@@ -1168,6 +1222,7 @@ Subject: {self.subject.upper()}
 Audience: {self.target_audience}
 Tone: {self.tone}
 Content Length: {self.content_word_count} words
+Bullet Style: {self.bullet_style}
 {slide_instruction}
 
 SUBJECT-SPECIFIC GUIDELINES:
@@ -1190,14 +1245,14 @@ EXACT RESPONSE FORMAT (REQUIRED):
 MANDATORY SLIDE REQUIREMENTS:
 ✓ EXACTLY {num_slides} slides in the array (NOT more, NOT less)
 ✓ EVERY slide has 4-8 bullet points EXACTLY
-✓ Bullet format: Start each bullet with "1. 2. 3." or "▸ ▪ ◆ ■ ★" icon
-✓ Example bullets: "1. First point here" or "▸ Point using icon"
+✓ BULLET STYLE: {self._get_bullet_style_instruction()}
+✓ Example bullets: {self._get_bullet_example()}
 ✓ Each bullet: 8-15 words maximum (not counting number/icon prefix)
 ✓ slide_number: 1, 2, 3... in sequence
 ✓ title: Main heading for the slide
 ✓ subtitle: Secondary title (can be empty string)
 ✓ content: Brief summary of slide (2-3 sentences)
-✓ bullets: Array of 4-8 string bullet points WITH numbers or icons
+✓ bullets: Array of 4-8 string bullet points WITH {self._get_bullet_format_description()}
 ✓ slide_type: "title" for first, "content" for others
 ✓ No markdown in any field
 ✓ No asterisks, no formatting, plain text only

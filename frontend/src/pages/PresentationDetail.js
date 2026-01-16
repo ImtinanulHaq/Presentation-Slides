@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Spin, Button, Space, Carousel, Empty, Row, Col, Tag, Form, Input, Modal, message, Alert, Popconfirm, Select } from 'antd';
 import { DeleteOutlined, EditOutlined, DownloadOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { presentationService, slideService } from '../services/api';
+import ScriptGenerationModal from '../components/ScriptGenerationModal';
 
 function PresentationDetail() {
   const { id } = useParams();
@@ -14,12 +15,24 @@ function PresentationDetail() {
   const [editMode, setEditMode] = useState(false);
   const [editingSlide, setEditingSlide] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isScriptModalVisible, setIsScriptModalVisible] = useState(false);
   const [downloadRatio, setDownloadRatio] = useState('16:9');  // Default slide ratio
   const [form] = Form.useForm();
 
   useEffect(() => {
     fetchPresentation();
   }, [id]);
+
+  // Suppress ResizeObserver error from Ant Design Carousel
+  useEffect(() => {
+    const handleError = (event) => {
+      if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   const fetchPresentation = async () => {
     try {
@@ -214,6 +227,13 @@ function PresentationDetail() {
                 </>
               ) : (
                 <>
+                  <Button 
+                    type="primary" 
+                    onClick={() => setIsScriptModalVisible(true)}
+                    style={{ backgroundColor: '#f97316', borderColor: '#f97316' }}
+                  >
+                    🎤 Generate Script
+                  </Button>
                   <Space>
                     <Select 
                       value={downloadRatio}
@@ -422,6 +442,16 @@ function PresentationDetail() {
           </Form>
         )}
       </Modal>
+
+      {/* Script Generation Modal */}
+      <ScriptGenerationModal 
+        visible={isScriptModalVisible}
+        onCancel={() => setIsScriptModalVisible(false)}
+        presentation={presentation}
+        onScriptGenerated={() => {
+          setIsScriptModalVisible(false);
+        }}
+      />
     </div>
   );
 }

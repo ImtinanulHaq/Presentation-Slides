@@ -17,6 +17,13 @@ class Presentation(models.Model):
         ('engineering', 'Engineering Field'),
     ]
     
+    BULLET_STYLE_CHOICES = [
+        ('numbered', 'Numbered (1, 2, 3...)'),
+        ('bullet_elegant', 'Elegant Bullets (●)'),
+        ('bullet_modern', 'Modern Bullets (▸)'),
+        ('bullet_professional', 'Professional Bullets (■)'),
+    ]
+    
     FONT_CHOICES = [
         # Serif Fonts (Professional, Academic)
         ('georgia', 'Georgia'),
@@ -85,6 +92,12 @@ class Presentation(models.Model):
     title_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='calibri')
     heading_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='calibri')
     content_font = models.CharField(max_length=50, choices=FONT_CHOICES, default='arial')
+    bullet_style = models.CharField(
+        max_length=50,
+        choices=BULLET_STYLE_CHOICES,
+        default='numbered',
+        help_text='Style for bullet points: numbered, elegant, modern, or professional'
+    )
     description = models.TextField(blank=True)
     json_structure = models.JSONField(default=dict, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)

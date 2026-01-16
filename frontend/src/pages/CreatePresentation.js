@@ -120,6 +120,7 @@ function CreatePresentation() {
         tone: values.tone,
         subject: values.subject || 'general',
         slide_ratio: values.slide_ratio || '16:9',
+        bullet_style: values.bullet_style || 'numbered',
         presentation_title: values.presentation_title?.trim() || '',
         num_slides: values.num_slides ? parseInt(values.num_slides) : null,
         enable_visuals: values.enable_visuals === true,
@@ -405,6 +406,25 @@ function CreatePresentation() {
                 <Input type="number" className="form-input" min="3" max="100" placeholder="e.g., 5, 7, 10, 50" />
               </Form.Item>
             </Col>
+
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="bullet_style"
+                label="Bullet Point Style"
+                initialValue="numbered"
+              >
+                <Select placeholder="Select bullet style" className="form-select">
+                  <Option value="numbered">1️⃣ Numbered (1, 2, 3...)</Option>
+                  <Option value="bullet_elegant">● Elegant Bullets</Option>
+                  <Option value="bullet_modern">▸ Modern Bullets</Option>
+                  <Option value="bullet_professional">■ Professional Bullets</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}></Col>
 
             <Col xs={24} md={12}>
               <Form.Item

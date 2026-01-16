@@ -7,6 +7,7 @@ from django.http import FileResponse
 from .models import Presentation, Slide
 from .serializers import PresentationSerializer, SlideSerializer, PresentationGenerateSerializer
 from .presentation_generator import GroqPresentationGenerator
+from .script_generator import GroqScriptGenerator
 from .pptx_generator import generate_pptx
 import json
 import logging
@@ -66,7 +67,15 @@ class PresentationViewSet(viewsets.ModelViewSet):
             enable_visuals = serializer.validated_data.get('enable_visuals', True)
             template = serializer.validated_data.get('template', 'rose_elegance')  # Get template choice
             slide_ratio = serializer.validated_data.get('slide_ratio', '16:9')  # Get slide ratio
+            bullet_style = serializer.validated_data.get('bullet_style', 'numbered')  # Get bullet style
             
+            # Validate and log bullet_style
+            valid_bullet_styles = ['numbered', 'bullet_elegant', 'bullet_modern', 'bullet_professional']
+            if bullet_style not in valid_bullet_styles:
+                logger.warning(f"⚠️ Invalid bullet_style='{bullet_style}', resetting to 'numbered'")
+                bullet_style = 'numbered'
+            
+            logger.info(f"✅ Extracted from request: bullet_style='{bullet_style}' (valid={bullet_style in valid_bullet_styles}), template='{template}', slide_ratio='{slide_ratio}'")
             # Convert num_slides to int if provided
             if num_slides:
                 try:
@@ -90,6 +99,8 @@ class PresentationViewSet(viewsets.ModelViewSet):
                     num_slides=num_slides,  # Pass user-specified slide count (disables auto-chunking)
                     enable_chunking=enable_chunking,  # Optional manual override
                     enable_visuals=enable_visuals,  # Enable visual suggestions
+                    bullet_style=bullet_style,  # Pass bullet style to LLM
+
                 )
                 
                 # Generate presentation with automatic chunking if applicable
@@ -150,9 +161,15 @@ class PresentationViewSet(viewsets.ModelViewSet):
                     subject=subject,
                     template=template,  # Store selected template
                     slide_ratio=slide_ratio,  # Store selected slide ratio
+                    bullet_style=bullet_style,  # Store selected bullet style
                     json_structure=json_structure,
                     created_by=request.user,
                 )
+                
+                # Immediately verify what was actually saved to the database
+                saved_value = presentation.bullet_style
+                logger.info(f"💾 VERIFICATION: Tried to save bullet_style='{bullet_style}', actually saved='{saved_value}' (equal={bullet_style == saved_value})")
+                logger.info(f"📝 Verification: DB read-back shows bullet_style='{presentation.bullet_style}', template='{presentation.template}', slide_ratio='{presentation.slide_ratio}'")
                 
                 # Create slide objects from JSON structure
                 slides_created = 0
@@ -253,12 +270,22 @@ class PresentationViewSet(viewsets.ModelViewSet):
             # Get slide ratio from query params, presentation settings, or use default
             slide_ratio = request.query_params.get('slide_ratio', presentation.slide_ratio or '16:9')
             
+            # Get bullet style from presentation - CRITICAL: This must match what was stored during creation
+            bullet_style = presentation.bullet_style
+            # Handle empty or None values
+            if not bullet_style or bullet_style.strip() == '':
+                bullet_style = 'numbered'
+                logger.warning(f"⚠️ bullet_style was empty/None, defaulting to 'numbered'")
+            
+            logger.info(f"📋 export_pptx: presentation.bullet_style from DB = '{bullet_style}'")
+            logger.info(f"📋 export_pptx: All DB fields - id={presentation.id}, template='{presentation.template}', slide_ratio='{presentation.slide_ratio}', bullet_style='{bullet_style}'")
+            
             # Validate slide ratio
             if slide_ratio not in ['16:9', '4:3', '1:1', '2:3']:
                 slide_ratio = '16:9'
             
-            logger.info(f"Exporting presentation {presentation.id} with template={template_name}, slide_ratio={slide_ratio}")
-            pptx_file = generate_pptx(presentation, template_name=template_name, slide_ratio=slide_ratio)
+            logger.info(f"🚀 export_pptx calling generate_pptx: template={template_name}, slide_ratio={slide_ratio}, bullet_style={bullet_style}")
+            pptx_file = generate_pptx(presentation, template_name=template_name, slide_ratio=slide_ratio, bullet_style=bullet_style)
             filename = f"{presentation.title.replace(' ', '_')}.pptx"
             return FileResponse(
                 pptx_file,
@@ -271,6 +298,199 @@ class PresentationViewSet(viewsets.ModelViewSet):
             return Response(
                 {'error': f'Failed to generate PPTX: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'])
+    def generate_script(self, request, pk=None):
+        """Generate speaker script for presentation slides
+        
+        POST data:
+        {
+            "total_duration": <minutes>,  # Total presentation duration in minutes
+            "selected_slides": [1, 2, 3],  # Optional: specific slide numbers to generate script for
+        }
+        """
+        presentation = self.get_object()
+        
+        try:
+            # Get request parameters
+            total_duration = request.data.get('total_duration')
+            selected_slides = request.data.get('selected_slides', [])
+            
+            # Validate duration
+            if not total_duration:
+                return Response(
+                    {'error': 'total_duration is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                total_duration = float(total_duration)
+                if total_duration <= 0:
+                    return Response(
+                        {'error': 'total_duration must be greater than 0'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'total_duration must be a valid number'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get presentation slides
+            all_slides = presentation.slides.all().order_by('slide_number')
+            
+            # Filter slides if specific ones were selected
+            if selected_slides:
+                slides_to_process = all_slides.filter(slide_number__in=selected_slides)
+            else:
+                slides_to_process = all_slides
+            
+            if not slides_to_process.exists():
+                return Response(
+                    {'error': 'No slides found in presentation'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Convert slide objects to dictionaries for script generator
+            slides_data = []
+            for slide in slides_to_process:
+                slide_dict = {
+                    'slide_number': slide.slide_number,
+                    'title': slide.title,
+                    'subtitle': slide.subtitle,
+                    'content': slide.content,
+                    'bullets': slide.bullets or [],
+                }
+                slides_data.append(slide_dict)
+            
+            logger.info(f"Generating script for presentation {presentation.id}: {len(slides_data)} slides, {total_duration} minutes")
+            
+            # Generate script using Groq
+            try:
+                script_generator = GroqScriptGenerator()
+                result = script_generator.generate_script_for_slides(
+                    slides=slides_data,
+                    presentation_tone=presentation.tone,
+                    total_duration=total_duration,
+                    presentation_title=presentation.title
+                )
+                
+                if result['success']:
+                    logger.info(f"✅ Script generated successfully for presentation {presentation.id}")
+                    return Response(result, status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Script generation failed: {result.get('error')}")
+                    return Response(
+                        {'error': f"Failed to generate script: {result.get('error')}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            except Exception as e:
+                logger.error(f"Error in script generation: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': f'Script generation failed: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        except Exception as e:
+            logger.error(f"Error processing script request: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Request processing failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def generate_single_slide_script(self, request, pk=None):
+        """Generate script for a single slide
+        
+        POST data:
+        {
+            "slide_id": <slide_id>,
+            "slide_duration": <minutes>,  # Duration for this specific slide
+        }
+        """
+        presentation = self.get_object()
+        
+        try:
+            # Get request parameters
+            slide_id = request.data.get('slide_id')
+            slide_duration = request.data.get('slide_duration')
+            
+            if not slide_id or not slide_duration:
+                return Response(
+                    {'error': 'slide_id and slide_duration are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                slide_duration = float(slide_duration)
+                if slide_duration <= 0:
+                    return Response(
+                        {'error': 'slide_duration must be greater than 0'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'slide_duration must be a valid number'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get the slide
+            try:
+                slide = presentation.slides.get(id=slide_id)
+            except Slide.DoesNotExist:
+                return Response(
+                    {'error': 'Slide not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Get adjacent slides for context
+            previous_slide = presentation.slides.filter(slide_number__lt=slide.slide_number).order_by('-slide_number').first()
+            next_slide = presentation.slides.filter(slide_number__gt=slide.slide_number).order_by('slide_number').first()
+            
+            slide_data = {
+                'title': slide.title,
+                'subtitle': slide.subtitle,
+                'content': slide.content,
+                'bullets': slide.bullets or [],
+            }
+            
+            logger.info(f"Generating script for slide {slide.id} in presentation {presentation.id}")
+            
+            try:
+                script_generator = GroqScriptGenerator()
+                result = script_generator.generate_script_for_single_slide(
+                    slide=slide_data,
+                    presentation_tone=presentation.tone,
+                    slide_duration=slide_duration,
+                    presentation_title=presentation.title,
+                    previous_slide_title=previous_slide.title if previous_slide else "Opening",
+                    next_slide_title=next_slide.title if next_slide else "Closing"
+                )
+                
+                if result['success']:
+                    logger.info(f"✅ Single slide script generated successfully for slide {slide.id}")
+                    return Response(result['script'], status=status.HTTP_200_OK)
+                else:
+                    logger.error(f"Single slide script generation failed: {result.get('error')}")
+                    return Response(
+                        {'error': f"Failed to generate script: {result.get('error')}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            except Exception as e:
+                logger.error(f"Error in single slide script generation: {str(e)}", exc_info=True)
+                return Response(
+                    {'error': f'Script generation failed: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        except Exception as e:
+            logger.error(f"Error processing single slide script request: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Request processing failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 

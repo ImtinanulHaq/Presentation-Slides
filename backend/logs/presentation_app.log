@@ -592,3 +592,42 @@ Traceback (most recent call last):
   File "A:\My_Coding_Projects\Presentation Tools\backend\venv\Lib\site-packages\rest_framework\authentication.py", line 203, in authenticate_credentials
     raise exceptions.AuthenticationFailed(_('Invalid token.'))
 rest_framework.exceptions.AuthenticationFailed: Invalid token.
+[2026-01-16 23:34:13] ERROR presentation_app.presentation_generator __init__ - [GROQ CLIENT] Initialization error: Client.__init__() got an unexpected keyword argument 'proxies'
+[2026-01-16 23:34:13] ERROR presentation_app.presentation_generator __init__ - [GROQ CLIENT] Attempting clean initialization with api_key only...
+[2026-01-16 23:34:13] CRITICAL presentation_app.presentation_generator __init__ - [GROQ CLIENT] Failed to initialize: Client.__init__() got an unexpected keyword argument 'proxies'
+[2026-01-17 00:31:34] ERROR presentation_app.script_generator generate_script_for_slides - Error generating script: 'Groq' object has no attribute 'messages'
+Traceback (most recent call last):
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\script_generator.py", line 64, in generate_script_for_slides
+    message = self.client.messages.create(
+              ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Groq' object has no attribute 'messages'
+[2026-01-17 00:32:09] ERROR presentation_app.script_generator generate_script_for_slides - Error generating script: Error code: 400 - {'error': {'message': 'The model `mixtral-8x7b-32768` has been decommissioned and is no longer supported. Please refer to https://console.groq.com/docs/deprecations for a recommendation on which model to use instead.', 'type': 'invalid_request_error', 'code': 'model_decommissioned'}}
+Traceback (most recent call last):
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\script_generator.py", line 64, in generate_script_for_slides
+    message = self.client.chat.completions.create(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\venv\Lib\site-packages\groq\resources\chat\completions.py", line 461, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\venv\Lib\site-packages\groq\_base_client.py", line 1242, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\venv\Lib\site-packages\groq\_base_client.py", line 1044, in request
+    raise self._make_status_error_from_response(err.response) from None
+groq.BadRequestError: Error code: 400 - {'error': {'message': 'The model `mixtral-8x7b-32768` has been decommissioned and is no longer supported. Please refer to https://console.groq.com/docs/deprecations for a recommendation on which model to use instead.', 'type': 'invalid_request_error', 'code': 'model_decommissioned'}}
+[2026-01-17 00:32:37] ERROR presentation_app.script_generator generate_script_for_slides - Error generating script: 'ChatCompletion' object has no attribute 'content'
+Traceback (most recent call last):
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\script_generator.py", line 77, in generate_script_for_slides
+    script_text = message.content[0].text
+                  ^^^^^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\venv\Lib\site-packages\pydantic\main.py", line 1026, in __getattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+AttributeError: 'ChatCompletion' object has no attribute 'content'
+[2026-01-17 00:33:05] ERROR presentation_app.script_generator _parse_script_response - Failed to parse script response as JSON: Invalid control character at: line 5 column 378 (char 447)
+[2026-01-17 00:33:05] ERROR presentation_app.script_generator _parse_script_response - Response text: [
+  {
+    "slide_number": 1,
+    "slide_title": "Introduction to AI",
+    "script": "Welcome, everyone, to this presentation on AI in the Modern World. Today, we'll be exploring the exciting developments in the field of Artificial Intelligence. Artificial Intelligence, or AI, is transforming the world around us. From smart homes to self-driving cars, AI is being applied in various areas to improve efficiency, productivity, and decision-making.
+
+Let's take a brief look at some of the fundamental 

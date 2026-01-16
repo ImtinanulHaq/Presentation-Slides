@@ -38,7 +38,7 @@ def calculate_optimal_font_size(text, max_width_inches, base_size, min_size=12):
     return base_size
 
 
-def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
+def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9', bullet_style='numbered'):
     """
     Generate a PPTX file from a presentation object with template styling
     Applies Rose Elegance template with professional colors, fonts, gradients, and layout
@@ -47,10 +47,14 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
         presentation_obj: Presentation model instance
         template_name: Template name (default: 'rose_elegance')
         slide_ratio: Slide aspect ratio ('16:9', '1:1', or '2:3')
+        bullet_style: Bullet style ('numbered', 'bullet_elegant', 'bullet_modern', 'bullet_professional')
     
     Returns:
         BytesIO: PPTX file in memory
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🎯 generate_pptx called with bullet_style='{bullet_style}'")
     
     # Load template
     template = TemplateRegistry.get_template(template_name)
@@ -273,7 +277,7 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
             text_frame.word_wrap = True
             text_frame.vertical_anchor = MSO_ANCHOR.TOP
             
-            # Professional bullet handling with Rose Elegance styling
+            # Professional bullet handling with style support
             if slide_obj.bullets:
                 bullets_list = slide_obj.bullets
                 
@@ -286,23 +290,22 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
                 # Limit to 6 bullets for readability
                 bullets_list = bullets_list[:6]
                 
-                # Professional bullet icons - pick ONE per slide (not rotating)
-                bullet_icons = ['▪', '▸', '◆', '■', '★', '●', '✓', '→']
-                # Use slide number to determine which icon for entire slide (consistent icon across all bullets)
-                slide_bullet_icon = bullet_icons[slide_idx % len(bullet_icons)]
+                # Determine bullet symbol based on bullet_style
+                # The LLM should have already formatted bullets with the correct symbol
+                # This is a fallback in case the LLM doesn't follow instructions
+                bullet_symbol = None
+                if bullet_style:
+                    style = str(bullet_style).strip().lower()
+                    if style == 'bullet_elegant':
+                        bullet_symbol = '●'
+                    elif style == 'bullet_modern':
+                        bullet_symbol = '▸'
+                    elif style == 'bullet_professional':
+                        bullet_symbol = '■'
                 
                 # Calculate optimal font size for all bullets on this slide based on count and content length
                 # This ensures all bullets on a slide have the SAME size and fit within bounds
                 num_bullets = len(bullets_list)
-                
-                # Calculate average bullet length - handle both dict and string bullets
-                total_length = 0
-                for b in bullets_list:
-                    if isinstance(b, dict):
-                        total_length += len(str(b.get('text', '')).strip())
-                    else:
-                        total_length += len(str(b).strip())
-                avg_bullet_length = total_length / max(num_bullets, 1) if num_bullets > 0 else 0
                 
                 # Smart sizing: More bullets = smaller font, but stay readable
                 if num_bullets == 6:
@@ -323,7 +326,8 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
                     space_after_bullets = Pt(8)  # Standard spacing
                 
                 # Render each bullet with professional styling
-                for idx, bullet in enumerate(bullets_list):
+                para_idx = 0
+                for bullet in bullets_list:
                     if not bullet or not str(bullet).strip():
                         continue
                     
@@ -335,30 +339,33 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9'):
                         bullet_text = str(bullet).strip()
                         level = 0
                     
-                    # Skip empty bullets
+                    # Clean bullet text (remove any existing bullet symbols or numbers)
+                    bullet_text = bullet_text.lstrip('•▸▪◆■★✓→ -0123456789.)')
+                    bullet_text = bullet_text.strip()
+                    
+                    # Skip if empty after cleaning
                     if not bullet_text:
                         continue
                     
                     # Add paragraph
-                    if idx == 0:
+                    if para_idx == 0:
                         p = text_frame.paragraphs[0]
                     else:
                         p = text_frame.add_paragraph()
                     
-                    # Clean bullet text (remove leading symbols/numbers)
-                    bullet_text = bullet_text.lstrip('•▸▪◆■★✓→ -0123456789.)')
-                    bullet_text = bullet_text.strip()
-                    
-                    # Use SAME bullet icon for ALL bullets on this slide
-                    bullet_icon = slide_bullet_icon
-                    
-                    # Create numbered/icon bullet format: "1. Text" or "▪ Text"
-                    numbered_bullet = f"{bullet_icon} {bullet_text}" if bullet_text else bullet_text
+                    # Format bullet based on selected style
+                    if bullet_symbol is not None:
+                        # Use the selected bullet symbol (●, ▸, or ■)
+                        formatted_bullet = f"{bullet_symbol} {bullet_text}"
+                    else:
+                        # Use numbered format (1., 2., 3., etc.)
+                        formatted_bullet = f"{para_idx + 1}. {bullet_text}"
                     
                     # Set paragraph properties
-                    p.text = numbered_bullet
+                    p.text = formatted_bullet
                     p.level = min(level, 1)  # Max 2 levels
                     
+                    para_idx += 1
                     # Apply optimized bullet size (same for all bullets on this slide)
                     bullet_font_size = optimal_bullet_font_size
                     

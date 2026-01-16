@@ -79,6 +79,8 @@ export const presentationService = {
   unpublish: (id) => apiClient.post(`/presentations/${id}/unpublish/`),
   generate: (data) => apiClient.post('/presentations/generate/', data),
   getJsonStructure: (id) => apiClient.get(`/presentations/${id}/json_structure/`),
+  generateScript: (id, data) => apiClient.post(`/presentations/${id}/generate_script/`, data),
+  generateSingleSlideScript: (id, data) => apiClient.post(`/presentations/${id}/generate_single_slide_script/`, data),
 };
 
 export const slideService = {
