@@ -6,6 +6,7 @@ Manages all available templates and provides convenient access
 from .rose_elegance import RoseEleganceTemplate
 from .warm_spectrum import WarmSpectrumTemplate
 from .warm_blue import WarmBlueTemplate
+from .modern_professional import ModernProfessionalTemplate
 
 
 class TemplateRegistry:
@@ -21,6 +22,8 @@ class TemplateRegistry:
         'premium_blush': RoseEleganceTemplate,  # Alias for rose_elegance
         'warm_spectrum': WarmSpectrumTemplate,
         'ocean_sunset': WarmSpectrumTemplate,  # Alias for warm_spectrum
+        'modern_professional': ModernProfessionalTemplate,
+        'gradient_pro': ModernProfessionalTemplate,  # Alias for modern_professional
     }
     
     # Default template

@@ -40,6 +40,16 @@ const TEMPLATES = {
     secondaryColor: '#0a9396',
     accentLight: '#94d2bd',
   },
+  modern_professional: {
+    name: 'Modern Professional',
+    description: 'Sleek template with gradient title slide and clean content',
+    primaryColor: '#6B5BA3',
+    accentColor: '#7B68EE',
+    backgroundColor: '#6B5BA3',
+    textColor: '#FFFFFF',
+    secondaryColor: '#8B6BB6',
+    accentLight: '#9B88EE',
+  },
 };
 
 // Professional Template Selector Component
