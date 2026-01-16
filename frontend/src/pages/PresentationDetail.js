@@ -1,9 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Spin, Button, Space, Carousel, Empty, Row, Col, Tag, Form, Input, Modal, message, Alert, Popconfirm, Select } from 'antd';
-import { DeleteOutlined, EditOutlined, DownloadOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, DownloadOutlined, SaveOutlined, CloseOutlined, BgColorsOutlined } from '@ant-design/icons';
 import { presentationService, slideService } from '../services/api';
 import ScriptGenerationModal from '../components/ScriptGenerationModal';
+import '../styles/PresentationDetail.css';
+
+const TEMPLATE_CONFIG = {
+  professional: [
+    { key: 'warm_blue', name: '🔵 Warm Blue', color: '#1E90FF' },
+    { key: 'rose_elegance', name: '🌹 Rose Elegance', color: '#C7417B' },
+    { key: 'warm_spectrum', name: '🌈 Warm Spectrum', color: '#FF6B6B' },
+  ],
+  modern: [
+    { key: 'modern_professional', name: '💜 Modern Professional', color: '#6B5BA3' },
+    { key: 'teal_modern', name: '🌊 Teal Modern', color: '#0D7377' },
+    { key: 'navy_professional', name: '💼 Navy Professional', color: '#1C3A47' },
+    { key: 'forest_green', name: '🌲 Forest Green', color: '#1B4332' },
+    { key: 'burgundy_elegance', name: '🍷 Burgundy Elegance', color: '#5A2C2A' },
+    { key: 'slate_blue', name: '🎨 Slate Blue', color: '#2C3E50' },
+  ],
+};
 
 function PresentationDetail() {
   const { id } = useParams();
@@ -16,7 +33,9 @@ function PresentationDetail() {
   const [editingSlide, setEditingSlide] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isScriptModalVisible, setIsScriptModalVisible] = useState(false);
+  const [isTemplateModalVisible, setIsTemplateModalVisible] = useState(false);
   const [downloadRatio, setDownloadRatio] = useState('16:9');  // Default slide ratio
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -163,6 +182,37 @@ function PresentationDetail() {
     form.resetFields();
   };
 
+  const handleTemplateChange = async (templateKey) => {
+    try {
+      setTemplateLoading(true);
+      const token = process.env.REACT_APP_API_TOKEN || 'b1bf242b1c8a2b638e79f0b282599ffafea3faf3';
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+      
+      const response = await fetch(`${apiUrl}/presentations/${id}/update_template/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ template: templateKey })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update template`);
+      }
+
+      const data = await response.json();
+      setPresentation(data);
+      setIsTemplateModalVisible(false);
+      message.success(`Template changed to ${templateKey}`);
+    } catch (error) {
+      console.error('Error updating template:', error);
+      message.error('Failed to change template. Please try again.');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   if (loading) {
     return <Spin size="large" tip="Loading presentation..." />;
   }
@@ -211,6 +261,11 @@ function PresentationDetail() {
               {presentation.subject && presentation.subject !== 'general' && (
                 <Tag color="purple">{presentation.subject}</Tag>
               )}
+              {presentation.template && (
+                <Tag color="orange">
+                  🎨 Template: {presentation.template.replace(/_/g, ' ').toUpperCase()}
+                </Tag>
+              )}
               {presentation.is_published && <Tag color="red">Published</Tag>}
             </Space>
             {(presentation.title_font || presentation.heading_font || presentation.content_font) && (
@@ -220,37 +275,59 @@ function PresentationDetail() {
             )}
           </Col>
           <Col span={12} style={{ textAlign: 'right' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              {editMode ? (
-                <>
-                  <Button onClick={() => setEditMode(false)}>Done Editing</Button>
-                </>
-              ) : (
-                <>
+            {editMode ? (
+              <Button onClick={() => setEditMode(false)} type="primary" size="large">
+                Done Editing
+              </Button>
+            ) : (
+              <div className="button-group-container">
+                <div className="button-section primary-buttons">
+                  <Button 
+                    type="primary" 
+                    icon={<BgColorsOutlined />}
+                    onClick={() => setIsTemplateModalVisible(true)}
+                    loading={templateLoading}
+                    className="btn-change-template"
+                  >
+                    Change Template
+                  </Button>
                   <Button 
                     type="primary" 
                     onClick={() => setIsScriptModalVisible(true)}
-                    style={{ backgroundColor: '#f97316', borderColor: '#f97316' }}
+                    className="btn-generate-script"
                   >
                     🎤 Generate Script
                   </Button>
-                  <Space>
-                    <Select 
-                      value={downloadRatio}
-                      onChange={setDownloadRatio}
-                      style={{ width: 170 }}
-                    >
-                      <Select.Option value="16:9">🖥️ Widescreen (16:9)</Select.Option>
-                      <Select.Option value="4:3">📺 Standard (4:3)</Select.Option>
-                      <Select.Option value="1:1">□ Square (1:1)</Select.Option>
-                      <Select.Option value="2:3">📱 Portrait (2:3)</Select.Option>
-                    </Select>
-                    <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
-                      Download PPTX
-                    </Button>
-                  </Space>
+                </div>
+
+                <div className="button-section download-section">
+                  <Select 
+                    value={downloadRatio}
+                    onChange={setDownloadRatio}
+                    className="select-ratio"
+                  >
+                    <Select.Option value="16:9">🖥️ Widescreen (16:9)</Select.Option>
+                    <Select.Option value="4:3">📺 Standard (4:3)</Select.Option>
+                    <Select.Option value="1:1">□ Square (1:1)</Select.Option>
+                    <Select.Option value="2:3">📱 Portrait (2:3)</Select.Option>
+                  </Select>
+                  <Button 
+                    type="primary" 
+                    icon={<DownloadOutlined />} 
+                    onClick={handleDownload}
+                    className="btn-download"
+                  >
+                    Download PPTX
+                  </Button>
+                </div>
+
+                <div className="button-section action-buttons">
                   {!presentation.is_published && (
-                    <Button type="primary" onClick={handlePublish}>
+                    <Button 
+                      type="primary" 
+                      onClick={handlePublish}
+                      className="btn-publish"
+                    >
                       Publish
                     </Button>
                   )}
@@ -262,13 +339,17 @@ function PresentationDetail() {
                     cancelText="No"
                     okButtonProps={{ danger: true }}
                   >
-                    <Button danger icon={<DeleteOutlined />}>
+                    <Button 
+                      danger 
+                      icon={<DeleteOutlined />}
+                      className="btn-delete"
+                    >
                       Delete
                     </Button>
                   </Popconfirm>
-                </>
-              )}
-            </Space>
+                </div>
+              </div>
+            )}
           </Col>
         </Row>
       </Card>
@@ -452,6 +533,74 @@ function PresentationDetail() {
           setIsScriptModalVisible(false);
         }}
       />
+
+      {/* Template Selection Modal */}
+      <Modal
+        title="🎨 Change Presentation Template"
+        open={isTemplateModalVisible}
+        onCancel={() => setIsTemplateModalVisible(false)}
+        footer={null}
+        width={700}
+        className="template-modal"
+      >
+        <div className="template-selection-container">
+          {/* Professional Templates Section */}
+          <div className="template-section">
+            <h3 className="template-section-title">Professional Templates</h3>
+            <div className="template-grid">
+              {TEMPLATE_CONFIG.professional.map((template) => (
+                <div
+                  key={template.key}
+                  className={`template-card ${presentation.template === template.key ? 'active' : ''}`}
+                  onClick={() => handleTemplateChange(template.key)}
+                  style={{
+                    borderColor: presentation.template === template.key ? template.color : '#ddd',
+                  }}
+                >
+                  <div
+                    className="template-color-preview"
+                    style={{ backgroundColor: template.color }}
+                  />
+                  <div className="template-name">{template.name}</div>
+                  {presentation.template === template.key && (
+                    <div className="template-badge">✓ Current</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Modern & Sleek Section */}
+          <div className="template-section">
+            <h3 className="template-section-title">Modern & Sleek (Gradient)</h3>
+            <div className="template-grid">
+              {TEMPLATE_CONFIG.modern.map((template) => (
+                <div
+                  key={template.key}
+                  className={`template-card ${presentation.template === template.key ? 'active' : ''}`}
+                  onClick={() => handleTemplateChange(template.key)}
+                  style={{
+                    borderColor: presentation.template === template.key ? template.color : '#ddd',
+                  }}
+                >
+                  <div
+                    className="template-color-preview"
+                    style={{ backgroundColor: template.color }}
+                  />
+                  <div className="template-name">{template.name}</div>
+                  {presentation.template === template.key && (
+                    <div className="template-badge">✓ Current</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="template-info">
+            <p>💡 <strong>Tip:</strong> Select a template above to change the design of your presentation. Download the presentation to see the changes in the PPTX file.</p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

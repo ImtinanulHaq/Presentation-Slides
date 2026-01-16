@@ -6,6 +6,163 @@ from io import BytesIO
 from .templates.template_registry import TemplateRegistry
 
 
+def hex_to_rgb(hex_color):
+    """Convert hex color to RGBColor"""
+    hex_color = hex_color.lstrip('#')
+    return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+
+def _generate_modern_professional_pptx(presentation_obj, slide_ratio='16:9', template_name='modern_professional'):
+    """
+    Generate PPTX with Modern Professional or gradient templates (COMPLETELY ISOLATED)
+    
+    Design:
+    - Title slide: Gradient background with centered white text
+    - Content slides: White background with dark text CENTERED in middle
+    - NO shared logic with other templates
+    
+    Args:
+        presentation_obj: Presentation model instance
+        slide_ratio: Slide aspect ratio ('16:9', '1:1', '4:3', '2:3')
+        template_name: Name of the gradient template to use
+    
+    Returns:
+        BytesIO: PPTX file in memory
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🎨 Generating {template_name} PPTX - Completely Isolated Template")
+    
+    # Load template to get gradient colors
+    template = TemplateRegistry.get_template(template_name)
+    colors = template.colors
+    
+    # Colors
+    GRADIENT_START = hex_to_rgb(colors['gradient_start'])
+    GRADIENT_END = hex_to_rgb(colors['gradient_end'])
+    WHITE = hex_to_rgb('#FFFFFF')
+    DARK_TEXT = hex_to_rgb('#1A1A1A')
+    
+    # Create presentation
+    prs = Presentation()
+    
+    # Set slide dimensions
+    if slide_ratio == '1:1':
+        prs.slide_width = Inches(7.5)
+        prs.slide_height = Inches(7.5)
+    elif slide_ratio == '4:3':
+        prs.slide_width = Inches(10)
+        prs.slide_height = Inches(7.5)
+    elif slide_ratio == '2:3':
+        prs.slide_width = Inches(6.67)
+        prs.slide_height = Inches(10)
+    else:  # Default 16:9
+        prs.slide_width = Inches(10)
+        prs.slide_height = Inches(5.625)
+    
+    # Get slides
+    slides = presentation_obj.slides.all().order_by('slide_number')
+    
+    for slide_obj in slides:
+        slide_layout = prs.slide_layouts[6]  # Blank layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        if slide_obj.slide_type == 'title':
+            # TITLE SLIDE: Gradient background + centered white text
+            background = slide.background
+            fill = background.fill
+            fill.gradient()
+            fill.gradient_angle = 45.0  # Diagonal
+            fill.gradient_stops[0].color.rgb = GRADIENT_START
+            fill.gradient_stops[1].color.rgb = GRADIENT_END
+            
+            # Title text - centered, large, white
+            title_text = slide_obj.title or presentation_obj.title
+            title_left = prs.slide_width.inches * 0.1
+            title_width = prs.slide_width.inches * 0.8
+            title_top = prs.slide_height.inches * 0.35
+            title_height = prs.slide_height.inches * 0.3
+            
+            title_box = slide.shapes.add_textbox(Inches(title_left), Inches(title_top), 
+                                                 Inches(title_width), Inches(title_height))
+            title_frame = title_box.text_frame
+            title_frame.word_wrap = True
+            title_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            p = title_frame.paragraphs[0]
+            p.text = title_text
+            p.alignment = PP_ALIGN.CENTER
+            p.font.size = Pt(44)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = 'Segoe UI'
+        
+        else:
+            # CONTENT SLIDE: White background + dark text CENTERED in MIDDLE
+            background = slide.background
+            fill = background.fill
+            fill.solid()
+            fill.fore_color.rgb = WHITE
+            
+            # Title (smaller, dark)
+            if slide_obj.title:
+                title_left = prs.slide_width.inches * 0.1
+                title_width = prs.slide_width.inches * 0.8
+                title_top = prs.slide_height.inches * 0.08
+                title_height = prs.slide_height.inches * 0.06
+                
+                title_box = slide.shapes.add_textbox(Inches(title_left), Inches(title_top),
+                                                     Inches(title_width), Inches(title_height))
+                title_frame = title_box.text_frame
+                title_frame.word_wrap = True
+                
+                p = title_frame.paragraphs[0]
+                p.text = slide_obj.title
+                p.font.size = Pt(24)  # Smaller heading
+                p.font.bold = True
+                p.font.color.rgb = DARK_TEXT
+                p.font.name = 'Segoe UI'
+                p.alignment = PP_ALIGN.CENTER
+            
+            # Content area - CENTERED in MIDDLE with LEFT-ALIGNED bullets
+            content_left = prs.slide_width.inches * 0.15
+            content_width = prs.slide_width.inches * 0.7
+            content_top = prs.slide_height.inches * 0.18  # Closer to title (less gap)
+            content_height = prs.slide_height.inches * 0.6
+            
+            content_box = slide.shapes.add_textbox(Inches(content_left), Inches(content_top),
+                                                   Inches(content_width), Inches(content_height))
+            text_frame = content_box.text_frame
+            text_frame.word_wrap = True
+            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            # Add bullets if exist
+            if slide_obj.bullets and len(slide_obj.bullets) > 0:
+                for bullet_idx, bullet in enumerate(slide_obj.bullets):
+                    if bullet_idx == 0:
+                        p = text_frame.paragraphs[0]
+                    else:
+                        p = text_frame.add_paragraph()
+                    
+                    bullet_text = bullet if isinstance(bullet, str) else bullet.get('text', '')
+                    p.text = bullet_text
+                    p.level = 0
+                    p.font.size = Pt(14)  # SMALL size
+                    p.font.color.rgb = DARK_TEXT
+                    p.font.name = 'Segoe UI'
+                    p.alignment = PP_ALIGN.LEFT  # LEFT-aligned text
+                    p.space_before = Pt(2)
+                    p.space_after = Pt(2)
+    
+    # Save to BytesIO
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    logger.info("✅ Modern Professional PPTX generated successfully")
+    return output
+
+
 def calculate_optimal_font_size(text, max_width_inches, base_size, min_size=12):
     """
     Calculate optimal font size based on text length
@@ -54,9 +211,15 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9', bull
     """
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"🎯 generate_pptx called with bullet_style='{bullet_style}'")
+    logger.info(f"🎯 generate_pptx called with bullet_style='{bullet_style}', template='{template_name}'")
     
-    # Load template
+    # SPECIAL HANDLING: All gradient-based modern templates use isolated generation
+    if template_name in ['modern_professional', 'gradient_pro', 'teal_modern', 'navy_professional', 
+                         'forest_green', 'burgundy_elegance', 'slate_blue']:
+        logger.info(f"🎨 Modern gradient template '{template_name}' detected - using dedicated isolated PPTX generator")
+        return _generate_modern_professional_pptx(presentation_obj, slide_ratio, template_name)
+    
+    # Load template for all other templates
     template = TemplateRegistry.get_template(template_name)
     
     # Get template colors
@@ -66,19 +229,19 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9', bull
     bullets = template.bullets
     
     # Parse colors from hex to RGB
-    def hex_to_rgb(hex_color):
+    def hex_to_rgb_internal(hex_color):
         """Convert hex color to RGBColor"""
         hex_color = hex_color.lstrip('#')
         return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
     
     # Rose Elegance Colors - Professional palette
-    PRIMARY_BG = hex_to_rgb(colors['primary_background'])      # #9d8189 - Deep mauve background
-    SECONDARY_BG = hex_to_rgb(colors['secondary_background'])  # #f4acb7 - Medium rose background
-    PRIMARY_TEXT = hex_to_rgb(colors['primary_text'])          # #5B3A49 - Dark mauve headings
-    SECONDARY_TEXT = hex_to_rgb(colors['secondary_text'])      # #6E4B57 - Rich brownish-mauve body text
-    ACCENT_BULLET = hex_to_rgb(colors['accent_color_dark'])    # #5B3A49 - Dark mauve bullets
-    ACCENT_LIGHT = hex_to_rgb(colors['accent_color_light'])    # #ffcad4 - Soft rose
-    WHITE = hex_to_rgb(colors['white'])                        # #ffffff - White
+    PRIMARY_BG = hex_to_rgb_internal(colors['primary_background'])      # #9d8189 - Deep mauve background
+    SECONDARY_BG = hex_to_rgb_internal(colors['secondary_background'])  # #f4acb7 - Medium rose background
+    PRIMARY_TEXT = hex_to_rgb_internal(colors['primary_text'])          # #5B3A49 - Dark mauve headings
+    SECONDARY_TEXT = hex_to_rgb_internal(colors['secondary_text'])      # #6E4B57 - Rich brownish-mauve body text
+    ACCENT_BULLET = hex_to_rgb_internal(colors['accent_color_dark'])    # #5B3A49 - Dark mauve bullets
+    ACCENT_LIGHT = hex_to_rgb_internal(colors['accent_color_light'])    # #ffcad4 - Soft rose
+    WHITE = hex_to_rgb_internal(colors['white'])                        # #ffffff - White
     
     # Create presentation with selected slide ratio
     prs = Presentation()
@@ -306,6 +469,13 @@ def generate_pptx(presentation_obj, template_name=None, slide_ratio='16:9', bull
                 # Calculate optimal font size for all bullets on this slide based on count and content length
                 # This ensures all bullets on a slide have the SAME size and fit within bounds
                 num_bullets = len(bullets_list)
+                
+                # Calculate average bullet length
+                if num_bullets > 0:
+                    total_length = sum(len(str(b)) for b in bullets_list)
+                    avg_bullet_length = total_length / num_bullets
+                else:
+                    avg_bullet_length = 0
                 
                 # Smart sizing: More bullets = smaller font, but stay readable
                 if num_bullets == 6:

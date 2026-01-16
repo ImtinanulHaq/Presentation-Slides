@@ -253,6 +253,34 @@ class PresentationViewSet(viewsets.ModelViewSet):
         presentation.save()
         return Response({'status': 'Presentation unpublished'})
 
+    @action(detail=True, methods=['post'])
+    def update_template(self, request, pk=None):
+        """Update presentation template"""
+        presentation = self.get_object()
+        try:
+            template_name = request.data.get('template')
+            if not template_name:
+                return Response(
+                    {'error': 'template field is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update the template
+            presentation.template = template_name
+            presentation.save()
+            
+            logger.info(f"Template updated for presentation {presentation.id}: {template_name}")
+            
+            # Return updated presentation data
+            serializer = PresentationSerializer(presentation)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error updating template: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Failed to update template'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=True, methods=['get'])
     def json_structure(self, request, pk=None):
         """Return just the JSON structure"""

@@ -58,6 +58,24 @@
   margin-top: 15px;
 }
 
+/* Template Sections */
+.template-selector-container {
+  width: 100%;
+}
+
+.template-section {
+  padding: 0;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2f6690;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e8eef5;
+}
+
 .template-card {
   background: white;
   border: 2px solid #e0e0e0;

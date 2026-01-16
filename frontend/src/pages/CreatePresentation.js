@@ -50,42 +50,126 @@ const TEMPLATES = {
     secondaryColor: '#8B6BB6',
     accentLight: '#9B88EE',
   },
+  teal_modern: {
+    name: 'Teal Modern',
+    description: 'Ocean-inspired template with teal gradient',
+    primaryColor: '#0D7377',
+    accentColor: '#4DB8C4',
+    backgroundColor: '#0D7377',
+    textColor: '#FFFFFF',
+    secondaryColor: '#14919B',
+    accentLight: '#4DB8C4',
+  },
+  navy_professional: {
+    name: 'Navy Professional',
+    description: 'Corporate template with navy blue gradient',
+    primaryColor: '#1C3A47',
+    accentColor: '#5B8DBE',
+    backgroundColor: '#1C3A47',
+    textColor: '#FFFFFF',
+    secondaryColor: '#2E5F7E',
+    accentLight: '#5B8DBE',
+  },
+  forest_green: {
+    name: 'Forest Green',
+    description: 'Natural template with forest green gradient',
+    primaryColor: '#1B4332',
+    accentColor: '#52B788',
+    backgroundColor: '#1B4332',
+    textColor: '#FFFFFF',
+    secondaryColor: '#2D6A4F',
+    accentLight: '#52B788',
+  },
+  burgundy_elegance: {
+    name: 'Burgundy Elegance',
+    description: 'Luxury template with burgundy gradient',
+    primaryColor: '#5A2C2A',
+    accentColor: '#D4627C',
+    backgroundColor: '#5A2C2A',
+    textColor: '#FFFFFF',
+    secondaryColor: '#8B3A3A',
+    accentLight: '#D4627C',
+  },
+  slate_blue: {
+    name: 'Slate Blue',
+    description: 'Modern template with slate blue gradient',
+    primaryColor: '#2C3E50',
+    accentColor: '#5DADE2',
+    backgroundColor: '#2C3E50',
+    textColor: '#FFFFFF',
+    secondaryColor: '#34495E',
+    accentLight: '#5DADE2',
+  },
 };
 
-// Professional Template Selector Component
+// Professional Template Selector Component with Sections
 function TemplateSelector({ value, onChange }) {
-  return (
-    <div className="template-selector-grid">
-      {Object.entries(TEMPLATES).map(([key, template]) => (
-        <div
-          key={key}
-          onClick={() => onChange(key)}
-          className={`template-card ${value === key ? 'selected' : ''}`}
-        >
-          {/* Color Preview */}
-          <div className="template-color-preview">
-            <div 
-              style={{ backgroundColor: template.primaryColor }}
-              className="color-swatch"
-              title={template.primaryColor}
-            />
-            <div 
-              style={{ backgroundColor: template.accentColor }}
-              className="color-swatch"
-              title={template.accentColor}
-            />
-          </div>
+  // Separate templates into two sections
+  const regularTemplates = {
+    warm_blue: TEMPLATES.warm_blue,
+    rose_elegance: TEMPLATES.rose_elegance,
+    warm_spectrum: TEMPLATES.warm_spectrum,
+  };
+  
+  const modernTemplates = {
+    modern_professional: TEMPLATES.modern_professional,
+    teal_modern: TEMPLATES.teal_modern,
+    navy_professional: TEMPLATES.navy_professional,
+    forest_green: TEMPLATES.forest_green,
+    burgundy_elegance: TEMPLATES.burgundy_elegance,
+    slate_blue: TEMPLATES.slate_blue,
+  };
 
-          {/* Template Info */}
-          <h4 className="template-name">{template.name}</h4>
-          <p className="template-description">{template.description}</p>
-
-          {/* Selected Badge */}
-          {value === key && (
-            <div className="template-selected-badge">✓ Selected</div>
-          )}
+  const renderTemplateCards = (templatesObj) => {
+    return Object.entries(templatesObj).map(([key, template]) => (
+      <div
+        key={key}
+        onClick={() => onChange(key)}
+        className={`template-card ${value === key ? 'selected' : ''}`}
+      >
+        {/* Color Preview */}
+        <div className="template-color-preview">
+          <div 
+            style={{ backgroundColor: template.primaryColor }}
+            className="color-swatch"
+            title={template.primaryColor}
+          />
+          <div 
+            style={{ backgroundColor: template.accentColor }}
+            className="color-swatch"
+            title={template.accentColor}
+          />
         </div>
-      ))}
+
+        {/* Template Info */}
+        <h4 className="template-name">{template.name}</h4>
+        <p className="template-description">{template.description}</p>
+
+        {/* Selected Badge */}
+        {value === key && (
+          <div className="template-selected-badge">✓ Selected</div>
+        )}
+      </div>
+    ));
+  };
+
+  return (
+    <div className="template-selector-container">
+      {/* Regular Templates Section */}
+      <div className="template-section">
+        <h3 className="section-title">Professional Templates</h3>
+        <div className="template-selector-grid">
+          {renderTemplateCards(regularTemplates)}
+        </div>
+      </div>
+
+      {/* Modern Professional Section */}
+      <div className="template-section" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e8e8e8' }}>
+        <h3 className="section-title">Modern & Sleek (Gradient)</h3>
+        <div className="template-selector-grid">
+          {renderTemplateCards(modernTemplates)}
+        </div>
+      </div>
     </div>
   );
 }
@@ -93,7 +177,7 @@ function TemplateSelector({ value, onChange }) {
 function CreatePresentation() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('warm_blue');
+  const [selectedTemplate, setSelectedTemplate] = useState('modern_professional');
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [step, setStep] = useState(1);
   const [generatedPresentation, setGeneratedPresentation] = useState(null);

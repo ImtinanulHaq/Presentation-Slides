@@ -7,6 +7,11 @@ from .rose_elegance import RoseEleganceTemplate
 from .warm_spectrum import WarmSpectrumTemplate
 from .warm_blue import WarmBlueTemplate
 from .modern_professional import ModernProfessionalTemplate
+from .teal_modern import TealModernTemplate
+from .navy_professional import NavyProfessionalTemplate
+from .forest_green import ForestGreenTemplate
+from .burgundy_elegance import BurgundyEleganceTemplate
+from .slate_blue import SlateBluTemplate
 
 
 class TemplateRegistry:
@@ -24,10 +29,15 @@ class TemplateRegistry:
         'ocean_sunset': WarmSpectrumTemplate,  # Alias for warm_spectrum
         'modern_professional': ModernProfessionalTemplate,
         'gradient_pro': ModernProfessionalTemplate,  # Alias for modern_professional
+        'teal_modern': TealModernTemplate,
+        'navy_professional': NavyProfessionalTemplate,
+        'forest_green': ForestGreenTemplate,
+        'burgundy_elegance': BurgundyEleganceTemplate,
+        'slate_blue': SlateBluTemplate,
     }
     
     # Default template
-    DEFAULT_TEMPLATE = 'warm_blue'
+    DEFAULT_TEMPLATE = 'modern_professional'
     
     @classmethod
     def get_template(cls, template_name=None):

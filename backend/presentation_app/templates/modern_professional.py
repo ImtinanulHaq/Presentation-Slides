@@ -1,7 +1,10 @@
 """
-Modern Professional Template - Sleek Gradient Design
-A contemporary, sophisticated template with gradient backgrounds
-Designed for impactful, professional presentations
+Modern Professional Template - Sleek Gradient Design with Centered Content
+A contemporary, sophisticated template with gradient title slide and clean white content slides
+Designed for impactful, professional presentations with centered text layout
+
+IMPORTANT: This template has COMPLETELY SEPARATE PPTX generation logic
+           Do NOT use standard pptx_generator flow - use dedicated function
 """
 
 from .template_base import PresentationTemplate
@@ -9,6 +12,7 @@ from pptx.util import Inches, Pt
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR
 
 
 class ModernProfessionalTemplate(PresentationTemplate):

@@ -654,3 +654,12 @@ Traceback (most recent call last):
     PRIMARY_BG = hex_to_rgb(colors['primary_background'])      # #9d8189 - Deep mauve background
                             ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
 KeyError: 'primary_background'
+[2026-01-17 03:13:19] ERROR presentation_app.views export_pptx - PPTX export failed for presentation 161: name 'avg_bullet_length' is not defined
+Traceback (most recent call last):
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\views.py", line 288, in export_pptx
+    pptx_file = generate_pptx(presentation, template_name=template_name, slide_ratio=slide_ratio, bullet_style=bullet_style)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\pptx_generator.py", line 476, in generate_pptx
+    elif avg_bullet_length > 80:
+         ^^^^^^^^^^^^^^^^^
+NameError: name 'avg_bullet_length' is not defined
