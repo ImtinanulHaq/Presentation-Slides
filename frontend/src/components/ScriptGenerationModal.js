@@ -109,11 +109,13 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
       return <Empty description="No scripts generated yet" />;
     }
 
-    const scriptItems = scripts.map((script) => {
+    const scriptItems = scripts.map((script, index) => {
       const durationMinutes = (script.estimated_duration_seconds / 60).toFixed(1);
+      // Use a combination of presentation ID and slide number to ensure uniqueness
+      const uniqueKey = `${presentation.id}-${script.slide_number}-${index}`;
       
       return {
-        key: script.slide_number,
+        key: uniqueKey,
         label: (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <span>
@@ -171,7 +173,7 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '20px' }}>
                   {script.key_points.map((point, idx) => (
-                    <li key={idx} style={{ marginBottom: '8px', color: '#262626' }}>
+                    <li key={`${uniqueKey}-point-${idx}`} style={{ marginBottom: '8px', color: '#262626' }}>
                       {point}
                     </li>
                   ))}
