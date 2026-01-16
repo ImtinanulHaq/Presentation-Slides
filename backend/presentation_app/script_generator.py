@@ -193,7 +193,8 @@ class GroqScriptGenerator:
                     presentation_tone=presentation_tone,
                     presentation_title=presentation_title,
                     duration_per_slide=duration_per_slide,
-                    duration_per_chunk=duration_per_chunk
+                    duration_per_chunk=duration_per_chunk,
+                    start_slide_number=start_idx + 1  # Pass the actual starting slide number
                 )
                 
                 if chunk_result['success']:
@@ -204,6 +205,9 @@ class GroqScriptGenerator:
                     logger.error(f"Chunk {chunk_num} failed: {chunk_result.get('error')}")
                     # Add fallback scripts for failed chunk
                     fallback = self._create_fallback_scripts(len(chunk_slides))
+                    # Adjust slide numbers in fallback scripts
+                    for i, script in enumerate(fallback):
+                        script['slide_number'] = start_idx + 1 + i
                     all_scripts.extend(fallback)
             
             except Exception as e:
@@ -211,6 +215,9 @@ class GroqScriptGenerator:
                 failed_chunks.append(chunk_num)
                 # Add fallback scripts for this chunk
                 fallback = self._create_fallback_scripts(len(chunk_slides))
+                # Adjust slide numbers in fallback scripts
+                for i, script in enumerate(fallback):
+                    script['slide_number'] = start_idx + 1 + i
                 all_scripts.extend(fallback)
         
         return {
@@ -231,85 +238,28 @@ class GroqScriptGenerator:
         }
     
     def _generate_chunk_scripts(self, chunk_slides, chunk_index, total_chunks, presentation_tone, 
-                                presentation_title, duration_per_slide, duration_per_chunk):
-        """Generate scripts for a single chunk of slides"""
+                                presentation_title, duration_per_slide, duration_per_chunk, start_slide_number=1):
+        """Generate scripts for a single chunk of slides
+        
+        Args:
+            chunk_slides: Slides in this chunk
+            chunk_index: Index of this chunk (0-based)
+            total_chunks: Total number of chunks
+            start_slide_number: The actual slide number to start numbering from (for correct global numbering)
+        """
         num_slides_in_chunk = len(chunk_slides)
         
         # Build slide information for the chunk
         slides_info = self._format_slides_for_prompt(chunk_slides)
         
-        # Create prompt for chunk
-        prompt = f"""You are an expert presentation speaker. Generate completely NATURAL, HUMAN-LIKE scripts for these presentation slides.
-
-HUMANIZATION RULES:
-- Sound like a REAL PERSON speaking naturally, NOT AI-generated
-- Use conversational language with natural sentence variations
-- Mix short and long sentences naturally
-- Include casual phrases: "you know", "actually", "so here's the thing", "look"
-- Use contractions: "that's", "you'll", "isn't", "won't"
-- Add engagement: rhetorical questions, personal language
-- Make transitions feel spontaneous and natural
-- Include realistic pauses and pacing
-
-PRESENTATION CONTEXT:
-- Title: {presentation_title}
-- Tone: {presentation_tone}
-- This is chunk {chunk_index + 1} of {total_chunks}
-- Duration per slide: {duration_per_slide:.1f} minutes ({int(duration_per_slide * 60)} seconds)
-- Total duration for this chunk: {duration_per_chunk:.1f} minutes
-
-SLIDES IN THIS CHUNK:
-{slides_info}
-
-IMPORTANT:
-1. Generate scripts that sound 100% human and conversational
-2. Each script should take approximately {int(duration_per_slide * 60)} seconds to deliver
-3. Scripts should flow naturally within the context of the full presentation
-4. Maintain consistent tone throughout the chunk
-
-Format each script as JSON:
-{{
-  "slide_number": <number>,
-  "slide_title": "<title>",
-  "script": "<natural, conversational script - sounds like a real person talking>",
-  "key_points": ["point1", "point2", "point3"],
-  "talking_points": "<casual speaker notes>",
-  "estimated_duration_seconds": <number>,
-  "transition_to_next": "<natural transition to next slide>",
-  "slide_explanation": "<what this slide is really about>"
-}}
-
-Return ONLY valid JSON array format. Generate completely natural, human-sounding scripts:"""
-        
-        logger.debug(f"Generating chunk {chunk_index + 1}/{total_chunks} with prompt length {len(prompt)}")
-        
-        # Call Groq API for this chunk
-        # Allocate tokens based on chunk size
-        max_tokens = min(8000, max(3000, num_slides_in_chunk * 500))
-        
-        message = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        
-        # Parse the response
-        script_text = message.choices[0].message.content
-        scripts = self._parse_script_response(script_text, num_slides_in_chunk)
-        
-        return {
-            "success": True,
-            "scripts": scripts,
-            "chunk_index": chunk_index
-        }
-        
-        # Build slide information for the chunk
-        slides_info = self._format_slides_for_prompt(chunk_slides)
+        # Add context about chunk position
+        chunk_context = ""
+        if total_chunks > 1:
+            chunk_context = f"\n\nCHUNK CONTEXT: This is chunk {chunk_index + 1} of {total_chunks} in a multi-part presentation."
+            if chunk_index > 0:
+                chunk_context += f"\nPrevious chunk covered slides 1-{start_slide_number - 1}."
+            if chunk_index < total_chunks - 1:
+                chunk_context += f"\nFollowing chunks will cover the remaining slides after this chunk."
         
         # Create prompt for chunk
         prompt = f"""You are an expert presentation speaker. Generate completely NATURAL, HUMAN-LIKE scripts for these presentation slides.
@@ -327,9 +277,12 @@ HUMANIZATION RULES:
 PRESENTATION CONTEXT:
 - Title: {presentation_title}
 - Tone: {presentation_tone}
-- This is chunk {chunk_index + 1} of {total_chunks}
 - Duration per slide: {duration_per_slide:.1f} minutes ({int(duration_per_slide * 60)} seconds)
-- Total duration for this chunk: {duration_per_chunk:.1f} minutes
+- Total duration for this chunk: {duration_per_chunk:.1f} minutes{chunk_context}
+
+IMPORTANT - SLIDE NUMBERING:
+These slides should be numbered starting from {start_slide_number}, NOT from 1.
+For example, if start_slide_number is 13, number them: 13, 14, 15, etc.
 
 SLIDES IN THIS CHUNK:
 {slides_info}
@@ -337,12 +290,13 @@ SLIDES IN THIS CHUNK:
 IMPORTANT:
 1. Generate scripts that sound 100% human and conversational
 2. Each script should take approximately {int(duration_per_slide * 60)} seconds to deliver
-3. Scripts should flow naturally within the context of the full presentation
-4. Maintain consistent tone throughout the chunk
+3. Use CORRECT SLIDE NUMBERS in your response (starting from {start_slide_number})
+4. Scripts should flow naturally within the context of the full presentation
+5. Maintain consistent tone throughout the chunk
 
-Format each script as JSON:
+Format each script as JSON with CORRECT slide_number:
 {{
-  "slide_number": <number>,
+  "slide_number": <number starting from {start_slide_number}>,
   "slide_title": "<title>",
   "script": "<natural, conversational script - sounds like a real person talking>",
   "key_points": ["point1", "point2", "point3"],
@@ -360,66 +314,19 @@ Return ONLY valid JSON array format. Generate completely natural, human-sounding
         # Allocate tokens based on chunk size
         max_tokens = min(8000, max(3000, num_slides_in_chunk * 500))
         
-        message = self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        
-        # Parse the response
-        script_text = message.choices[0].message.content
+        script_text = self._call_groq_api(prompt, max_tokens, chunk_index, total_chunks)
         scripts = self._parse_script_response(script_text, num_slides_in_chunk)
+        
+        # Adjust slide numbers if they weren't generated correctly
+        for i, script in enumerate(scripts):
+            if script.get('slide_number', 0) < start_slide_number:
+                script['slide_number'] = start_slide_number + i
         
         return {
             "success": True,
             "scripts": scripts,
             "chunk_index": chunk_index
         }
-    
-    def _call_groq_api(self, prompt, max_tokens, chunk_index=0, total_chunks=0):
-        """Call Groq API with retry logic for rate limits"""
-        max_retries = 3
-        retry_count = 0
-        base_wait_time = 2  # Start with 2 seconds
-        
-        while retry_count < max_retries:
-            try:
-                message = self.client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=max_tokens,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                )
-                return message.choices[0].message.content
-            
-            except Exception as e:
-                error_str = str(e)
-                
-                # Check if it's a rate limit error
-                if "429" in error_str or "Too Many Requests" in error_str:
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        wait_time = base_wait_time * (2 ** (retry_count - 1))  # Exponential backoff
-                        logger.warning(f"Rate limited on chunk {chunk_index + 1}/{total_chunks}. "
-                                     f"Retrying in {wait_time} seconds (attempt {retry_count}/{max_retries})...")
-                        time.sleep(wait_time)
-                    else:
-                        logger.error(f"Max retries exceeded for chunk {chunk_index + 1}/{total_chunks}")
-                        raise
-                else:
-                    # Not a rate limit error, raise immediately
-                    raise
-        
-        raise Exception("Failed to call Groq API after all retries")
     
     def _format_slides_for_prompt(self, slides):
         """Format slides data for the prompt"""

@@ -109,10 +109,18 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
       return <Empty description="No scripts generated yet" />;
     }
 
+    // Calculate chunk boundaries for visual grouping
+    const chunkSize = metadata.processing_mode === 'chunked' ? Math.ceil(scripts.length / metadata.num_chunks) : scripts.length;
+    
     const scriptItems = scripts.map((script, index) => {
       const durationMinutes = (script.estimated_duration_seconds / 60).toFixed(1);
       // Use a combination of presentation ID and slide number to ensure uniqueness
       const uniqueKey = `${presentation.id}-${script.slide_number}-${index}`;
+      
+      // Determine which chunk this slide belongs to
+      const chunkNumber = metadata.processing_mode === 'chunked' ? Math.floor(index / chunkSize) + 1 : 1;
+      const isChunkStart = metadata.processing_mode === 'chunked' && index % chunkSize === 0;
+      const isChunkEnd = metadata.processing_mode === 'chunked' && (index + 1) % chunkSize === 0;
       
       return {
         key: uniqueKey,
@@ -120,6 +128,11 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <span>
               <strong>Slide {script.slide_number}</strong>: {script.slide_title}
+              {metadata.processing_mode === 'chunked' && (
+                <Tag color="orange" style={{ marginLeft: '8px', fontSize: '11px' }}>
+                  Chunk {chunkNumber}
+                </Tag>
+              )}
             </span>
             <Tag color="blue" style={{ marginRight: 0 }}>
               ⏱️ {durationMinutes} min
@@ -128,6 +141,14 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
         ),
         children: (
           <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {/* Chunk Start Indicator */}
+            {isChunkStart && metadata.processing_mode === 'chunked' && index > 0 && (
+              <Card style={{ marginBottom: '16px', backgroundColor: '#f0f0f0', borderLeft: '4px solid #ff7a45' }}>
+                <div style={{ color: '#ff7a45', fontWeight: 'bold', fontSize: '12px' }}>
+                  ▶ Chunk {chunkNumber} Starts Here
+                </div>
+              </Card>
+            )}
             {/* Slide Explanation */}
             <Card style={{ marginBottom: '16px', backgroundColor: '#f0f5ff' }}>
               <div style={{ marginBottom: '12px' }}>
@@ -221,6 +242,66 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
       };
     });
 
+    // Add chunk linking information when in chunked mode
+    let chunkedItems = scriptItems;
+    if (metadata.processing_mode === 'chunked') {
+      // Group items by chunk and add chunk headers
+      const itemsByChunk = [];
+      const chunkSize = Math.ceil(scripts.length / metadata.num_chunks);
+      
+      for (let chunkIdx = 0; chunkIdx < metadata.num_chunks; chunkIdx++) {
+        const chunkStart = chunkIdx * chunkSize;
+        const chunkEnd = Math.min((chunkIdx + 1) * chunkSize, scripts.length);
+        const chunkScripts = scriptItems.slice(chunkStart, chunkEnd);
+        
+        // Add chunk header
+        const chunkHeaderKey = `chunk-${chunkIdx}`;
+        const firstSlideNum = scripts[chunkStart].slide_number;
+        const lastSlideNum = scripts[chunkEnd - 1].slide_number;
+        
+        itemsByChunk.push({
+          key: chunkHeaderKey,
+          label: (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              width: '100%',
+              backgroundColor: '#fff7e6',
+              borderRadius: '4px',
+              padding: '8px 12px',
+              fontWeight: 'bold',
+              color: '#ff7a45'
+            }}>
+              <span>📦 Chunk {chunkIdx + 1} of {metadata.num_chunks}</span>
+              <span style={{ fontSize: '12px', fontWeight: 'normal' }}>Slides {firstSlideNum}-{lastSlideNum}</span>
+            </div>
+          ),
+          children: (
+            <div style={{ backgroundColor: '#fafafa', padding: '12px', borderRadius: '4px' }}>
+              {chunkIdx > 0 && (
+                <Card style={{ marginBottom: '16px', backgroundColor: '#f0f5ff', borderLeft: '4px solid #1890ff' }}>
+                  <div style={{ color: '#1890ff', fontSize: '12px' }}>
+                    ⬅️ <strong>Previous Chunk:</strong> Chunk {chunkIdx} (Slides {scripts[chunkStart - chunkSize].slide_number}-{scripts[Math.min(chunkStart - 1, scripts.length - 1)].slide_number})
+                  </div>
+                </Card>
+              )}
+              <Collapse items={chunkScripts} />
+              {chunkIdx < metadata.num_chunks - 1 && (
+                <Card style={{ marginTop: '16px', backgroundColor: '#f6ffed', borderLeft: '4px solid #52c41a' }}>
+                  <div style={{ color: '#52c41a', fontSize: '12px' }}>
+                    <strong>Next Chunk:</strong> Chunk {chunkIdx + 2} (Slides {scripts[chunkEnd].slide_number}-{scripts[Math.min(chunkEnd + chunkSize - 1, scripts.length - 1)].slide_number}) ➡️
+                  </div>
+                </Card>
+              )}
+            </div>
+          ),
+          disabled: false,
+        });
+      }
+      chunkedItems = itemsByChunk;
+    }
+
     return (
       <div>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -229,6 +310,11 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
             <span style={{ marginLeft: '12px', color: '#8c8c8c', fontSize: '12px' }}>
               {scripts.length} slides • Total: {metadata.total_duration} minutes
             </span>
+            {metadata.processing_mode === 'chunked' && (
+              <span style={{ marginLeft: '12px', color: '#1890ff', fontSize: '12px', fontWeight: 'bold' }}>
+                📦 {metadata.num_chunks} chunks processed
+              </span>
+            )}
           </div>
           <Button 
             type="primary" 
@@ -238,7 +324,11 @@ function ScriptGenerationModal({ visible, onCancel, presentation, onScriptGenera
             Download All Scripts
           </Button>
         </div>
-        <Collapse items={scriptItems} defaultActiveKey={['1']} />
+        {metadata.processing_mode === 'chunked' ? (
+          <Collapse items={chunkedItems} defaultActiveKey={['chunk-0']} />
+        ) : (
+          <Collapse items={scriptItems} defaultActiveKey={['1']} />
+        )}
       </div>
     );
   };
