@@ -631,3 +631,17 @@ AttributeError: 'ChatCompletion' object has no attribute 'content'
     "script": "Welcome, everyone, to this presentation on AI in the Modern World. Today, we'll be exploring the exciting developments in the field of Artificial Intelligence. Artificial Intelligence, or AI, is transforming the world around us. From smart homes to self-driving cars, AI is being applied in various areas to improve efficiency, productivity, and decision-making.
 
 Let's take a brief look at some of the fundamental 
+[2026-01-17 02:21:26] ERROR presentation_app.script_generator _parse_script_response - Failed to parse script response as JSON: Expecting value: line 1 column 2 (char 1)
+[2026-01-17 02:21:26] ERROR presentation_app.script_generator _parse_script_response - Response text: Here is the script for each slide in JSON format:
+
+[
+  {
+    "slide_number": 1,
+    "slide_title": "Comprehensive Overview: Future-Proof Your Career: Why Business Beats Jobs When AI Takes Over",
+    "script": "Hey everyone, welcome to this presentation on Future-Proofing Your Career. I want to talk about a very real and pressing issue: what happens to our jobs when AI takes over. I mean, we've all heard the stats, but today, we're going to dig deeper and figure out how to make the most of this r
+[2026-01-17 02:22:37] ERROR presentation_app.script_generator _parse_script_response - Failed to parse script response as JSON: Expecting value: line 1 column 2 (char 1)
+[2026-01-17 02:22:37] ERROR presentation_app.script_generator _parse_script_response - Response text: [
+  {
+    "slide_number": 1,
+    "slide_title": "Comprehensive Overview: Future-Proof Your Career: Why Business Beats Jobs When AI Takes Over",
+    "script": "Welcome, everyone. I'm excited to talk about something that's on everyone's mind these days – the future of work. As we stand here today, AI is transforming industries, creating new opportunities, and raising concerns about the future of our careers. My goal for today is to provide a comprehensive overview of this changing landscape and sh
