@@ -41,6 +41,15 @@ class ModernProfessionalTemplate(PresentationTemplate):
             'gradient_end': '#8B6BB6',  # Purple gradient end
             'gradient_mid': '#7A6BAA',  # Mid gradient color
             
+            # PPTX Generator Required Keys (for compatibility)
+            'primary_background': '#6B5BA3',  # Purple - title slide background
+            'secondary_background': '#8B6BB6',  # Lighter purple
+            'primary_text': '#1A1A1A',  # Dark gray - main text
+            'secondary_text': '#4A4A4A',  # Light gray - secondary text
+            'accent_color_dark': '#7B68EE',  # Medium slate blue - bullets
+            'accent_color_light': '#9B88EE',  # Light slate blue
+            'white': '#FFFFFF',  # Pure white
+            
             # Text colors
             'title_slide_text': '#FFFFFF',  # White text on title slide
             'content_slide_text': '#1A1A1A',  # Dark text on content slides

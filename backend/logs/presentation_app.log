@@ -645,3 +645,12 @@ Let's take a brief look at some of the fundamental
     "slide_number": 1,
     "slide_title": "Comprehensive Overview: Future-Proof Your Career: Why Business Beats Jobs When AI Takes Over",
     "script": "Welcome, everyone. I'm excited to talk about something that's on everyone's mind these days – the future of work. As we stand here today, AI is transforming industries, creating new opportunities, and raising concerns about the future of our careers. My goal for today is to provide a comprehensive overview of this changing landscape and sh
+[2026-01-17 03:00:02] ERROR presentation_app.views export_pptx - PPTX export failed for presentation 164: 'primary_background'
+Traceback (most recent call last):
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\views.py", line 288, in export_pptx
+    pptx_file = generate_pptx(presentation, template_name=template_name, slide_ratio=slide_ratio, bullet_style=bullet_style)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "A:\My_Coding_Projects\Presentation Tools\backend\presentation_app\pptx_generator.py", line 75, in generate_pptx
+    PRIMARY_BG = hex_to_rgb(colors['primary_background'])      # #9d8189 - Deep mauve background
+                            ~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'primary_background'
